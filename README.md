@@ -222,6 +222,9 @@ docs/                        feasibility, architecture, setup, troubleshooting, 
 | [03-SETUP.md](docs/03-SETUP.md) | Build, install, configure, hardware test checklist |
 | [04-TROUBLESHOOTING.md](docs/04-TROUBLESHOOTING.md) | Fault isolation, hop by hop |
 | [05-SECURITY.md](docs/05-SECURITY.md) | Threat model, authentication, least privilege, known limitations |
+| [06-SECURITY-REVIEW.md](docs/06-SECURITY-REVIEW.md) | Findings from the review before publication: fixed, accepted, scheduled |
+| [07-COMPATIBILITY.md](docs/07-COMPATIBILITY.md) | What has actually been run, and what is only supported by design |
+| [08-ORIENTATION.md](docs/08-ORIENTATION.md) | **Start here if you are picking this up cold.** What went wrong, how each fault was found, and which lessons the build now enforces |
 
 ## Before production
 
