@@ -1,0 +1,104 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# --------------------------------------------------------------------------------------------
+# What this workflow does NOT do, and why
+# --------------------------------------------------------------------------------------------
+# installer\Build-All.ps1 is the real build. In order, it: checks every TWAIN constant against
+# NAPS2's NTwain.dll (a real TWAIN implementation outside this repository), builds the native
+# TWAIN data source and DVC plugin in both bitnesses, builds and tests the managed solution,
+# runs the native transport test, packs two single-file installers, confirms each one actually
+# carries its embedded payload, and — the step that matters most — asks a genuine twaindsm.dll
+# to discover the freshly built data source.
+#
+# Two of those cannot happen in a hosted runner, and this workflow does not attempt to fake
+# either one:
+#
+#   - The TWAIN constant check needs NAPS2 (and the NTwain.dll it ships) installed. Absent
+#     that, installer\ConstantCheck prints a warning and exits 0 without comparing anything —
+#     see installer\ConstantCheck\Program.cs. This workflow still builds and runs the checker
+#     below, but only to confirm the tool itself compiles; a green run here is NOT proof the
+#     constants are right.
+#   - The discovery gate needs a real twaindsm.dll and is not attempted here at all.
+#
+# Neither is the hardware side: nothing in this workflow has a scanner attached, so
+# SELF-TEST.bat and dsmprobe's four transfer mechanisms (native, memory, memory-file, file)
+# against real hardware are not run here and cannot be. See CONTRIBUTING.md for how to run
+# both on a developer machine, and treat a green run of this workflow as "compiles, and its
+# hardware-free tests pass" — nothing about scanning itself, and nothing about whether a real
+# TWAIN application would ever see the result.
+
+jobs:
+  managed:
+    name: Managed build and unit tests
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET 8 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Restore
+        run: dotnet restore ScanBridge.sln
+
+      - name: Build solution (Release, warnings as errors)
+        run: dotnet build ScanBridge.sln -c Release --no-restore
+
+      - name: Run unit tests
+        run: >
+          dotnet test tests\Unit\ScanBridge.Tests.Unit.csproj -c Release --no-build
+          --logger "console;verbosity=normal"
+
+      - name: Build and run the TWAIN constant checker (does not verify anything here)
+        # This is installer\Build-All.ps1's first and most important step, reproduced only
+        # far enough to prove the checker itself still builds and runs. It cannot do its actual
+        # job — comparing rs_twain.h and TwainTypes.cs against a real TWAIN library — because
+        # NAPS2 is not installed on this runner. ConstantCheck detects that itself and exits 0
+        # with a warning rather than failing; see the "Exit codes" note at the top of
+        # installer\ConstantCheck\Program.cs. A wrong TWAIN constant is the one class of bug
+        # this whole repository cannot catch by testing itself (the DSM forwards DG/DAT/MSG
+        # values untouched), which is exactly why this step existing here is not the same
+        # thing as this gate having run.
+        run: |
+          dotnet build installer\ConstantCheck\ConstantCheck.csproj -c Release --no-restore
+          dotnet installer\ConstantCheck\bin\Release\net8.0\ScanBridge.ConstantCheck.dll ${{ github.workspace }}
+
+  native:
+    name: Native build (x86 + x64) and transport test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # No step is needed to point build.cmd at a toolchain. It asks vswhere, which every
+      # edition of Visual Studio installs at the same path, so it finds the Enterprise install
+      # on this runner and Community or BuildTools on a developer machine alike.
+      #
+      # It did not always: it checked two hardcoded paths and told anyone with Professional or
+      # Enterprise that the build tools were "not found" while they sat on disk. That was found
+      # by writing this workflow, which is a fair argument for having one.
+
+      - name: Build native components, both bitnesses
+        # Builds ScanBridge.ds, ScanBridge.DvcPlugin.dll, and the diagnostic tools (dstest,
+        # dsmenum, dsmprobe, pipetest) for x86 and x64. See native\build.cmd.
+        shell: cmd
+        run: native\build.cmd both
+
+      - name: Run the native transport test (no scanner or hardware needed)
+        # pipetest exercises rs::PipeClient the way the DVC plugin actually uses it (a reader
+        # thread and a writer thread sharing one pipe handle) against two local named pipes —
+        # nothing external. It is the test that catches a specific overlapped-I/O deadlock that
+        # made scanning over RDP silently impossible while every managed test still passed; see
+        # the comment at the top of native\tools\pipetest.cpp. It is not a substitute for
+        # SELF-TEST.bat or dsmprobe against real hardware — see CONTRIBUTING.md.
+        shell: cmd
+        run: |
+          build\x64\pipetest.exe
+          build\x86\pipetest.exe

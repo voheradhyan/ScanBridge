@@ -17,10 +17,27 @@ set "OUT=%ROOT%..\build"
 set "ARCH=%~1"
 if "%ARCH%"=="" set "ARCH=both"
 
-set "VCVARS=%ProgramFiles(x86)%\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvarsall.bat"
+rem Find the C++ toolchain by asking Visual Studio's own locator rather than guessing paths.
+rem
+rem This used to check two hardcoded locations, BuildTools and Community. Anyone with
+rem Professional or Enterprise installed was told the build tools were "not found" while they
+rem sat on disk — including GitHub's windows-latest runner, which ships Enterprise. vswhere is
+rem installed by every edition, always at the same place, and answers the question properly.
+rem The two old paths remain as a fallback for a machine where vswhere is missing.
+set "VCVARS="
+set "VSWHERE=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
+
+if exist "%VSWHERE%" (
+    for /f "usebackq tokens=*" %%i in (`"%VSWHERE%" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath 2^>nul`) do (
+        if exist "%%i\VC\Auxiliary\Build\vcvarsall.bat" set "VCVARS=%%i\VC\Auxiliary\Build\vcvarsall.bat"
+    )
+)
+
+if not defined VCVARS set "VCVARS=%ProgramFiles(x86)%\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvarsall.bat"
 if not exist "%VCVARS%" set "VCVARS=%ProgramFiles%\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvarsall.bat"
 if not exist "%VCVARS%" (
     echo ERROR: Visual Studio C++ build tools not found.
+    echo        Install the "Desktop development with C++" workload, any edition.
     exit /b 1
 )
 

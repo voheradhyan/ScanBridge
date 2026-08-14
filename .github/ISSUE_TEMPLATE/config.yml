@@ -1,0 +1,7 @@
+# NOTE: replace OWNER/REPO in the URL below with this repository's actual GitHub path once
+# it has one, and enable Discussions in the repository settings — it is off by default.
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and general discussion
+    url: https://github.com/OWNER/REPO/discussions
+    about: Not sure if it's a bug, or just have a question about setup or how something works? Start here instead of an issue.

@@ -1,0 +1,43 @@
+name: Feature request
+description: Suggest something this doesn't do yet.
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before requesting: check `docs/01-FEASIBILITY.md` and `docs/07-COMPATIBILITY.md` first.
+        Some things that look like missing features are boundaries the platform imposes rather
+        than gaps in this project — a virtual WIA device needing Microsoft attestation signing,
+        or non-`mstsc.exe` RDP clients not loading add-ins at all, are both examples of that and
+        won't be revisited by a feature request.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: Describe the situation, not just the feature — it's easier to judge a proposed solution against the actual problem.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would you like to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What have you tried or considered instead?
+    validations:
+      required: false
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Anything else worth knowing?
+      description: Environment, scale, a related issue, whether you're willing to help implement it.
+    validations:
+      required: false

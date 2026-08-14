@@ -1,0 +1,46 @@
+# Line endings, decided here rather than left to each contributor's git configuration.
+#
+# This matters more than it usually does. A .bat or .cmd file is parsed line by line as it
+# runs, and cmd.exe mis-splits bare LF: a script whose first line is "setlocal" fails with
+# "'tlocal' is not recognized as an internal or external command". The script is not wrong,
+# nothing in it changed, and the error names a command nobody wrote. Measured on this
+# repository, not imagined — every batch file in the tree had drifted to LF and the native
+# build stopped working until they were converted back.
+#
+# So Windows script files are pinned to CRLF in the working tree whatever core.autocrlf says,
+# and everything else is normalised to LF in the repository so a diff never turns into a
+# whole-file rewrite because somebody's editor disagreed.
+
+* text=auto
+
+# Must be CRLF on disk: cmd.exe cannot reliably parse them otherwise.
+*.bat   text eol=crlf
+*.cmd   text eol=crlf
+
+# PowerShell tolerates LF, but these sit beside the batch files and are edited in the same
+# breath; keeping them consistent avoids a confusing mixed-ending directory.
+*.ps1   text eol=crlf
+
+# Visual Studio rewrites these with CRLF whenever it touches them, so declaring it prevents a
+# spurious full-file diff the first time somebody opens the solution.
+*.sln       text eol=crlf
+*.csproj    text eol=crlf
+*.vcxproj   text eol=crlf
+
+# Source and documentation: LF in the repository, native in the working tree.
+*.cs    text
+*.cpp   text
+*.h     text
+*.md    text
+*.yml   text
+*.xaml  text
+*.def   text
+
+# Binary. Never normalised, never diffed as text.
+*.ico   binary
+*.png   binary
+*.jpg   binary
+*.bmp   binary
+*.dll   binary
+*.exe   binary
+*.ds    binary

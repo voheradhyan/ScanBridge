@@ -1,0 +1,145 @@
+name: Bug report
+description: Something is not working — a scanner is not visible, a scan fails, redirection drops, etc.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for filing this. This product has only been verified end to end on one
+        hardware and OS combination (see `docs/07-COMPATIBILITY.md`) — most bug reports will
+        be the first time anyone has run this exact combination of client OS, server OS, and
+        scanner, so the details below matter more than usual for finding where it broke.
+
+        Before filing: does `ScanBridge-Client.exe --enumerate-once` see the scanner, with no
+        RDP involved? That one command splits a driver problem from a redirection problem in
+        a few seconds, and changes what this report is actually about.
+
+  - type: input
+    id: client-os
+    attributes:
+      label: Client OS (the PC the scanner is physically attached to)
+      placeholder: e.g. Windows 11 23H2, Windows 10 22H2
+    validations:
+      required: true
+
+  - type: input
+    id: server-os
+    attributes:
+      label: Server OS (the machine you remote into)
+      placeholder: e.g. Windows Server 2022, Windows Server 2019 (RDS), Windows 11 with Remote Desktop enabled
+    validations:
+      required: true
+
+  - type: dropdown
+    id: rdp-client
+    attributes:
+      label: RDP client used to connect
+      description: >-
+        Only mstsc.exe loads RDP add-ins. The Microsoft Store "Windows App" / MSRDC, FreeRDP,
+        Royal TS, and Jump Desktop do not, and cannot — this is not a bug this project can
+        work around. If you are not sure which one you used, check how you launched the
+        connection.
+      options:
+        - mstsc.exe (Remote Desktop Connection, the classic Windows client)
+        - RemoteApp or RDWeb (uses mstsc.exe underneath)
+        - Microsoft Store "Windows App" / MSRDC
+        - FreeRDP
+        - Royal TS
+        - Jump Desktop
+        - Something else (name it below)
+        - Not sure
+    validations:
+      required: true
+
+  - type: input
+    id: rdp-client-other
+    attributes:
+      label: If "something else" above, what was it?
+    validations:
+      required: false
+
+  - type: input
+    id: scanning-app
+    attributes:
+      label: Scanning application, and whether it is 32-bit or 64-bit
+      description: >-
+        Task Manager → Details → the *Platform* column, or look for "*32" beside the process
+        name. This decides which of the two installed data sources (twain_32 or twain_64) the
+        application can even see.
+      placeholder: e.g. Adobe Acrobat, 64-bit
+    validations:
+      required: true
+
+  - type: input
+    id: scanner-model
+    attributes:
+      label: Scanner make and model
+    validations:
+      required: true
+
+  - type: dropdown
+    id: scanner-interface
+    attributes:
+      label: Is the scanner WIA or TWAIN?
+      description: >-
+        Check with `ScanBridge-Client.exe --enumerate-once` — it prints `[Wia]` or `[Twain]`
+        next to each device. Note that the TWAIN backend has real device support but has never
+        been exercised against real hardware outside this project (see
+        `docs/07-COMPATIBILITY.md`), so a TWAIN report is independently useful even if it turns
+        out to be a known gap rather than a regression.
+      options:
+        - WIA
+        - TWAIN
+        - Both listed / not sure which is being used
+        - Not sure — haven't run --enumerate-once yet
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what actually happened. Exact error text if any appeared.
+    validations:
+      required: true
+
+  - type: textarea
+    id: self-test
+    attributes:
+      label: Does the local self-test pass?
+      description: >-
+        On the PC with the scanner, run `SELF-TEST.bat` (or
+        `ScanBridge-Server.exe --session-agent --loopback` plus `dsmprobe.exe --scan`). It
+        removes the RDP hop entirely and drives the production path directly. Passing here
+        means the problem is in RDP redirection, not scanning; failing here means it's
+        somewhere before RDP is even involved, and that's a different bug.
+      placeholder: Passed / Failed / Have not tried it yet
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: >-
+        Everything that runs as a signed-in user (the tray agent, the session agent, the data
+        source inside the scanning application, the plugin inside mstsc.exe) logs to
+        `%LocalAppData%\ScanBridge\logs` on its own machine — so gather that folder from
+        **both** the client PC and the server. The Windows service on the server, which runs
+        as LocalSystem, is the only thing that logs to `%ProgramData%\ScanBridge\logs`, so
+        that folder on the server matters too. `COLLECT-LOGS.bat` gathers the right set for
+        whichever machine you run it on. Paste the relevant excerpts, or attach the zipped
+        folders — page pixel data is never written to any log, only sizes and hashes, so logs
+        are safe to share.
+      placeholder: |
+        Client %LocalAppData%\ScanBridge\logs:
+        ...
+
+        Server %LocalAppData%\ScanBridge\logs:
+        ...
+
+        Server %ProgramData%\ScanBridge\logs:
+        ...
+    validations:
+      required: false

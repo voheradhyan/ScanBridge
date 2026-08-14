@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!-- Deliberately outside ScanBridge.sln: this is a build gate, not a component, and
-       nothing ships it. Build-All.ps1 runs it through "dotnet run". -->
+       nothing ships it. Build-All.ps1 builds it, then invokes the compiled DLL directly. -->
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
