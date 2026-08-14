@@ -45,6 +45,21 @@ function Invoke-Checked($description) {
     if ($LASTEXITCODE -ne 0) { throw "$description failed with exit code $LASTEXITCODE." }
 }
 
+# A freshly written file in a synced folder is sometimes held for a moment by whatever indexes
+# it. Failing a whole build over that, having done nothing wrong, is not acceptable; neither is
+# retrying forever and hiding a genuine lock.
+function Copy-WithRetry($source, $destination, $attempts = 5) {
+    for ($i = 1; $i -le $attempts; $i++) {
+        try {
+            Copy-Item $source -Destination $destination -Force
+            return
+        } catch {
+            if ($i -eq $attempts) { throw }
+            Start-Sleep -Milliseconds (200 * $i)
+        }
+    }
+}
+
 # ------------------------------------------------------- TWAIN constants, first of all
 #
 # Before anything is compiled, because a wrong constant makes everything built after it
@@ -79,6 +94,44 @@ if (-not $SkipNative) {
     Invoke-Checked "Native build"
 } else {
     Write-Host "Skipping the native build." -ForegroundColor Yellow
+}
+
+# ------------------------------------------------------- payload the client carries
+#
+# Published before the solution is built, because the client embeds it as a resource and MSBuild
+# reads the file at compile time. Get this order wrong and the build still succeeds — it simply
+# produces a client with nothing inside it, which looks identical and fails at install.
+#
+# Single file so that what is embedded is one thing rather than a folder of a hundred, and
+# self-contained because it exists to load 32-bit scanner drivers on machines where nobody
+# asked for a 32-bit .NET runtime.
+
+if (-not $SkipNative) {
+    Write-Step "Publishing the 32-bit scan host (carried inside the client)"
+    $payloadOut = Join-Path $buildRoot 'payload\x86'
+    New-Item -ItemType Directory -Force -Path $payloadOut | Out-Null
+
+    # Published into TEMP and copied in, rather than straight into build\.
+    #
+    # A single-file publish rewrites its output in place at the end, and this repository can sit
+    # in a synced folder — OneDrive, Dropbox — whose indexer holds a handle on a file that has
+    # just appeared. That surfaces as "the process cannot access the file", from a build step
+    # that did nothing wrong, at random. TEMP is not synced, and the copy afterwards retries.
+    $hostStaging = Join-Path $env:TEMP "rs-scanhost-$([guid]::NewGuid().ToString('N').Substring(0,8))"
+
+    & dotnet publish (Join-Path $repoRoot 'src\RemoteScanner.ScanHost\RemoteScanner.ScanHost.csproj') `
+        -c $Configuration -r win-x86 --self-contained true `
+        -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true `
+        -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=none `
+        -o $hostStaging --nologo -v quiet
+    Invoke-Checked "32-bit scan host publish"
+
+    Copy-WithRetry (Join-Path $hostStaging 'RemoteScanner.ScanHost.exe') `
+                   (Join-Path $payloadOut 'RemoteScanner.ScanHost.exe')
+    Remove-Item $hostStaging -Recurse -Force -ErrorAction SilentlyContinue
+
+    $hostSize = [math]::Round((Get-Item (Join-Path $payloadOut 'RemoteScanner.ScanHost.exe')).Length / 1MB, 1)
+    Write-Host "    build\payload\x86\RemoteScanner.ScanHost.exe  ($hostSize MB)"
 }
 
 # ----------------------------------------------------------------------- managed
@@ -238,6 +291,36 @@ Remove-Item (Join-Path $buildRoot 'dist-staging') -Recurse -Force -ErrorAction S
 
 $packedSize = [math]::Round((Get-Item (Join-Path $distOut 'RemoteScanner-Server.exe')).Length / 1MB, 1)
 Write-Host "    build\dist\RemoteScanner-Server.exe  ($packedSize MB, carries both data sources)"
+
+Write-Step "Packing the client into one file"
+& dotnet publish (Join-Path $repoRoot 'src\RemoteScanner.Client.UI\RemoteScanner.Client.UI.csproj') `
+    -c $Configuration -r win-x64 --self-contained true `
+    -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true `
+    -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=none `
+    -o (Join-Path $buildRoot 'dist-staging') --nologo -v quiet
+Invoke-Checked "Client single-file publish"
+
+$packedClient = Join-Path $buildRoot 'dist-staging\RemoteScanner.Client.exe'
+if (-not (Test-Path $packedClient)) { throw "The client single-file publish produced no executable." }
+
+Copy-Item $packedClient -Destination (Join-Path $distOut 'RemoteScanner-Client.exe') -Force
+Remove-Item (Join-Path $buildRoot 'dist-staging') -Recurse -Force -ErrorAction SilentlyContinue
+
+$clientSize = [math]::Round((Get-Item (Join-Path $distOut 'RemoteScanner-Client.exe')).Length / 1MB, 1)
+Write-Host "    build\dist\RemoteScanner-Client.exe  ($clientSize MB, carries the add-in and the 32-bit host)"
+
+# The payload has to be inside, not merely intended to be. A build that missed it looks
+# identical from outside and fails at the last step of an install, on somebody else's machine.
+Write-Step "Checking both installers carry their payload"
+foreach ($installer in @('RemoteScanner-Server.exe', 'RemoteScanner-Client.exe')) {
+    $probe = Join-Path $env:TEMP "rs-payload-check-$([guid]::NewGuid().ToString('N').Substring(0,8))"
+    & (Join-Path $distOut $installer) --extract $probe | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "$installer carries no payload (exit $LASTEXITCODE)." }
+
+    $carried = @(Get-ChildItem $probe -Recurse -File)
+    Write-Host "    $installer : $($carried.Count) file(s)"
+    Remove-Item $probe -Recurse -Force -ErrorAction SilentlyContinue
+}
 
 # ------------------------------------------------------------------ verification
 

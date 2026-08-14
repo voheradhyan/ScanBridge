@@ -85,10 +85,89 @@ public partial class App : System.Windows.Application
     private static readonly string[] ConsoleRoles =
     {
         "--enumerate-once", "--pairing-code", "--headless", "--help", "-?", "/?",
+        "--install", "--uninstall", "--extract",
     };
 
     [System.Runtime.InteropServices.DllImport("kernel32.dll")]
     private static extern bool AttachConsole(int processId);
+
+    private static int RunCommandLine(string[] args)
+    {
+        string role = args[0].ToLowerInvariant();
+
+        return role switch
+        {
+            "--install" => ClientInstaller.Install(ValueAfter(args, "--to")),
+            "--uninstall" => ClientInstaller.Uninstall(),
+            "--extract" => ExtractPayload(ValueAfter(args, "--extract")),
+            "--help" or "-?" or "/?" => PrintUsage(),
+            _ => RemoteScanner.Agent.Program.RunAsync(args).GetAwaiter().GetResult(),
+        };
+    }
+
+    private static string? ValueAfter(string[] args, string name)
+    {
+        int index = Array.FindIndex(args, a => a.Equals(name, StringComparison.OrdinalIgnoreCase));
+        return index >= 0 && index + 1 < args.Length ? args[index + 1] : null;
+    }
+
+    /// <summary>
+    /// Writes the carried files somewhere harmless and prints their hashes. Needs nothing
+    /// installed and changes nothing, and answers the question that cannot be answered from
+    /// outside: whether this executable really contains its payload. A build assembled without
+    /// the native components produces an installer that looks identical and fails at the end.
+    /// </summary>
+    private static int ExtractPayload(string? directory)
+    {
+        if (directory is null)
+        {
+            Console.Error.WriteLine("Usage: --extract <folder>");
+            return 2;
+        }
+
+        string[] names = EmbeddedPayload.Names().ToArray();
+        if (names.Length == 0)
+        {
+            Console.Error.WriteLine(
+                "This executable carries no payload. It was built without the native components " +
+                "or the 32-bit host; rebuild with installer\\Build-All.ps1.");
+            return 3;
+        }
+
+        foreach (string name in names)
+        {
+            string destination = Path.Combine(directory, name.Replace('/', Path.DirectorySeparatorChar));
+            string hash = EmbeddedPayload.Extract(name, destination);
+            var written = new FileInfo(destination);
+            Console.WriteLine($"{name,-36} {written.Length,11:N0} bytes  sha256:{hash}");
+        }
+
+        return 0;
+    }
+
+    private static int PrintUsage()
+    {
+        Console.WriteLine($"""
+            Remote Scanner — the half that runs on the PC with the scanner.
+
+            Makes this PC's scanner usable by applications running in your Remote Desktop
+            session on a server.
+
+              --install [--to <folder>]  install for the current user and start it
+                                         (default: {ClientInstaller.DefaultDirectory})
+              --uninstall                remove it
+              --enumerate-once           list the scanners this PC can see, then exit
+              --pairing-code             print the code that pairs this PC with a session
+              --extract <folder>         write out the carried files and their hashes
+              --help                     this text
+
+            Run with no arguments to start the tray application.
+
+            Do not run this as an administrator: everything it installs belongs to one user,
+            and an elevated install puts it in the wrong account while appearing to succeed.
+            """);
+        return 0;
+    }
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -99,10 +178,19 @@ public partial class App : System.Windows.Application
         //
         // A WinExe has no console of its own, so it borrows the one it was launched from —
         // without this, output from these switches goes nowhere and the command looks broken.
+        // The 64-bit scan host. Started by the agent as a fresh process for every job, so a
+        // vendor driver that leaks, hangs or calls ExitProcess still costs one job and nothing
+        // else — same executable, separate process. No console: it speaks over a pipe.
+        if (e.Args.Contains("--scan-host", StringComparer.OrdinalIgnoreCase))
+        {
+            Environment.Exit(ScanHost.Program.Run(e.Args));
+            return;
+        }
+
         if (e.Args.Any(a => ConsoleRoles.Contains(a, StringComparer.OrdinalIgnoreCase)))
         {
             AttachConsole(-1);   // ATTACH_PARENT_PROCESS
-            int code = RemoteScanner.Agent.Program.RunAsync(e.Args).GetAwaiter().GetResult();
+            int code = RunCommandLine(e.Args);
             Console.Out.Flush();
 
             // Environment.Exit, not Shutdown: Shutdown() during OnStartup leaves the process

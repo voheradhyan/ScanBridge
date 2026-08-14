@@ -27,11 +27,46 @@ public sealed class ScanHostRunner
     public ScanHostRunner(string? installDirectory = null)
         => _installDirectory = installDirectory ?? AppContext.BaseDirectory;
 
-    /// <summary>Where each bitness of ScanHost lives once installed.</summary>
+    /// <summary>
+    /// Which program serves each bitness, and how it must be called.
+    ///
+    /// The 64-bit host is this same application in another role, so a 64-bit PC needs no
+    /// separate file for it. The 32-bit host cannot be: a scanner driver's bitness decides the
+    /// bitness of the process that loads it, and that is the entire reason this component
+    /// exists. It is installed beside us.
+    ///
+    /// A separate executable is still used for 64-bit when this process is not the tray
+    /// application — the older layout, and how the integration tools run.
+    /// </summary>
+    public (string Executable, string Arguments) HostCommand(bool use64Bit, string pipeName)
+    {
+        if (use64Bit && HostedInThisProcess)
+            return (Environment.ProcessPath!, $"--scan-host --pipe {pipeName}");
+
+        string separate = Path.Combine(_installDirectory, use64Bit ? "x64" : "x86",
+                                       "RemoteScanner.ScanHost.exe");
+        return (separate, $"--pipe {pipeName}");
+    }
+
+    /// <summary>
+    /// Whether this process can serve the scan-host role itself.
+    ///
+    /// Answered by asking whether the host's code is actually present, not by comparing the
+    /// executable's file name. The name is a property of how somebody chose to save the file —
+    /// the distributable installer is called RemoteScanner-Client.exe and the installed copy
+    /// RemoteScanner.Client.exe — and a check on it would silently fall back to looking for a
+    /// separate 64-bit host that a single-file build does not ship.
+    /// </summary>
+    private static readonly bool HostedInThisProcess =
+        Environment.Is64BitProcess &&
+        Type.GetType("RemoteScanner.ScanHost.Program, RemoteScanner.ScanHost", throwOnError: false) is not null;
+
+    /// <summary>Where a separately installed host of that bitness lives.</summary>
     public string ExecutablePath(bool use64Bit)
         => Path.Combine(_installDirectory, use64Bit ? "x64" : "x86", "RemoteScanner.ScanHost.exe");
 
-    public bool IsAvailable(bool use64Bit) => File.Exists(ExecutablePath(use64Bit));
+    public bool IsAvailable(bool use64Bit)
+        => (use64Bit && HostedInThisProcess) || File.Exists(ExecutablePath(use64Bit));
 
     /// <summary>
     /// Runs one command and yields every frame the host emits, in order, until it exits.
@@ -44,18 +79,18 @@ public sealed class ScanHostRunner
         IMessage command,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        string executable = ExecutablePath(use64Bit);
+        string pipeName = "RemoteScanner.Host." + Convert.ToHexString(RandomNumberGenerator.GetBytes(16));
+        (string executable, string arguments) = HostCommand(use64Bit, pipeName);
+
         if (!File.Exists(executable))
             throw new FileNotFoundException($"ScanHost is missing: {executable}", executable);
-
-        string pipeName = "RemoteScanner.Host." + Convert.ToHexString(RandomNumberGenerator.GetBytes(16));
 
         await using var server = SecurePipe.Create(pipeName, SecurePipe.CurrentUserSid(),
                                                    maxInstances: 1, firstInstance: true);
 
         using var process = new Process
         {
-            StartInfo = new ProcessStartInfo(executable, $"--pipe {pipeName}")
+            StartInfo = new ProcessStartInfo(executable, arguments)
             {
                 UseShellExecute = false,
                 CreateNoWindow = true,

@@ -25,8 +25,22 @@ namespace RemoteScanner.ScanHost;
 [SupportedOSPlatform("windows")]
 public static class Program
 {
+    /// <summary>
+    /// Entry point for the 32-bit build, which has to be its own executable: the bitness of a
+    /// scanner driver decides the bitness of the process that can load it.
+    /// </summary>
     [STAThread]
-    public static int Main(string[] args)
+    public static int Main(string[] args) => Run(args);
+
+    /// <summary>
+    /// The host itself, callable from the 64-bit tray application so that
+    /// "client.exe --scan-host" is the 64-bit host and there is no second file to install.
+    ///
+    /// This does not weaken the isolation the host exists for: the agent still starts a fresh
+    /// process for every job, and a driver that leaks, hangs or calls ExitProcess still costs
+    /// exactly that one job. Same executable, separate process.
+    /// </summary>
+    public static int Run(string[] args)
     {
         Log.Initialize($"scanhost-{(Environment.Is64BitProcess ? "x64" : "x86")}");
         var log = Log.Logger;

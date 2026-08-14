@@ -55,7 +55,12 @@ public partial class MainWindow : Window
         // Build date in the title. "Am I looking at the new version or an old one still running
         // in the tray?" is otherwise unanswerable from the screen, and answering it wrongly
         // sends people debugging a bug that was already fixed.
-        var built = File.GetLastWriteTime(typeof(MainWindow).Assembly.Location);
+        //
+        // Taken from the executable on disk, not from Assembly.Location: packed as a single
+        // file, the assembly has no location and that returns an empty string — which would
+        // have put a 1601 date in the title of every shipped build.
+        string self = Environment.ProcessPath ?? AppContext.BaseDirectory;
+        var built = File.Exists(self) ? File.GetLastWriteTime(self) : DateTime.Now;
         Title = $"Remote Scanner  —  build {built:yyyy-MM-dd HH:mm}";
 
         SessionsGrid.ItemsSource = _links;
