@@ -105,7 +105,7 @@ built by concatenation.
 
 ### 9. Every user on the RDS host could read every other user's logs · medium–low · fixed
 
-`Install-Server.ps1` granted `BUILTIN\Users` Modify over `%ProgramData%\RemoteScanner`,
+`Install-Server.ps1` granted `BUILTIN\Users` Modify over `%ProgramData%\ScanBridge`,
 recursively, so that session agents running as different users could write there. The
 consequence was that any user on a Session Host could read all of it: machine names, user SIDs,
 session ids, scanner models, link timings. No document content — pages are never written to a
@@ -114,7 +114,7 @@ colleagues.
 
 Everything that runs as a signed-in user — the tray agent, the session agent, the data source
 inside the scanning application, the plugin inside `mstsc.exe` — now logs to
-`%LocalAppData%\RemoteScanner\logs`, on both the managed and the native side. Only the service,
+`%LocalAppData%\ScanBridge\logs`, on both the managed and the native side. Only the service,
 which runs as LocalSystem and belongs to no user, writes to ProgramData, so the installer no
 longer widens its permissions at all. `COLLECT-LOGS.bat` gathers both locations, since a fault
 usually needs the pair.
@@ -123,7 +123,7 @@ usually needs the pair.
 
 ### 10. The two DLLs that load into third-party processes are unsigned
 
-`RemoteScanner.ds` loads into every scanning application, and `RemoteScanner.DvcPlugin.dll` into
+`ScanBridge.ds` loads into every scanning application, and `ScanBridge.DvcPlugin.dll` into
 `mstsc.exe`. Unsigned DLLs in those positions are exactly what endpoint protection is most
 suspicious of, and signing is also what makes tampering detectable. Outstanding since before
 this review; it matters more once distribution is a single downloadable executable.

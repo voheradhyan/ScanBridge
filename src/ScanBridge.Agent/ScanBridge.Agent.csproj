@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- A library. The agent runs inside the tray application; see Program.RunAsync. -->
+    <OutputType>Library</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AssemblyName>ScanBridge.Agent</AssemblyName>
+    <RootNamespace>ScanBridge.Agent</RootNamespace>
+    <PlatformTarget>x64</PlatformTarget>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ScanBridge.Common\ScanBridge.Common.csproj" />
+    <ProjectReference Include="..\ScanBridge.Protocol\ScanBridge.Protocol.csproj" />
+    <ProjectReference Include="..\ScanBridge.Rdp\ScanBridge.Rdp.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ScanBridge mark.
+
+  The idea: two piers (the PC with the scanner, and the remote session that wants to
+  use it) standing on either side of a gap, joined by a single deck spanning across.
+  ScanBridge IS that deck — the thing that makes the far side reachable. Reduced to
+  three flat rounded blocks so it still reads as "bridge" at 16px in a tray, not just
+  at poster size.
+
+  Colours: Ink Navy #16324F (the two piers / places), Span Teal #2FD3C7 (the deck /
+  the bridge itself). A prefers-color-scheme block swaps the piers to a light "Paper"
+  tone (#E7ECF2) on dark backgrounds so the mark keeps contrast without a second file.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-label="ScanBridge">
+  <title>ScanBridge</title>
+  <style>
+    .sb-pier { fill: #16324F; }
+    .sb-deck { fill: #2FD3C7; }
+    @media (prefers-color-scheme: dark) {
+      .sb-pier { fill: #E7ECF2; }
+    }
+  </style>
+
+  <!-- Left pier: the PC with the physical scanner attached -->
+  <rect class="sb-pier" x="48" y="48" width="48" height="176" rx="16" ry="16"/>
+  <!-- Right pier: the remote session that needs the scanner -->
+  <rect class="sb-pier" x="160" y="48" width="48" height="176" rx="16" ry="16"/>
+
+  <!-- Deck: ScanBridge itself, spanning the gap and overlapping both piers -->
+  <rect class="sb-deck" x="32" y="32" width="192" height="32" rx="16" ry="16"/>
+</svg>

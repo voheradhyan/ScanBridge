@@ -5,13 +5,13 @@
 .DESCRIPTION
     Produces two directories under build\:
 
-      build\client\            RemoteScanner.Client.exe (tray agent) + dependencies
+      build\client\            ScanBridge.Client.exe (tray agent) + dependencies
       build\client\x64\        ScanHost x64, DvcPlugin x64
       build\client\x86\        ScanHost x86, DvcPlugin x86
 
-      build\server\            RemoteScanner.Service.exe (service, session agent, pairing)
-      build\server\x64\        RemoteScanner.ds (64-bit)
-      build\server\x86\        RemoteScanner.ds (32-bit)
+      build\server\            ScanBridge.Server.exe (service, session agent, pairing)
+      build\server\x64\        ScanBridge.ds (64-bit)
+      build\server\x86\        ScanBridge.ds (32-bit)
 
     Both bitnesses are produced throughout because TWAIN has no in-process bitness bridge:
     a 32-bit application can only load a 32-bit data source, and mstsc.exe can only load a
@@ -72,7 +72,7 @@ Write-Step "Checking TWAIN constants against a real TWAIN library"
 $constantCheck = Join-Path $scriptRoot 'ConstantCheck\ConstantCheck.csproj'
 & dotnet build $constantCheck -c Release --nologo -v quiet
 Invoke-Checked "Constant-check build"
-& dotnet (Join-Path $scriptRoot 'ConstantCheck\bin\Release\net8.0\RemoteScanner.ConstantCheck.dll') $repoRoot
+& dotnet (Join-Path $scriptRoot 'ConstantCheck\bin\Release\net8.0\ScanBridge.ConstantCheck.dll') $repoRoot
 Invoke-Checked "TWAIN constant check"
 
 # ------------------------------------------------------------------------ native
@@ -119,30 +119,30 @@ if (-not $SkipNative) {
     # that did nothing wrong, at random. TEMP is not synced, and the copy afterwards retries.
     $hostStaging = Join-Path $env:TEMP "rs-scanhost-$([guid]::NewGuid().ToString('N').Substring(0,8))"
 
-    & dotnet publish (Join-Path $repoRoot 'src\RemoteScanner.ScanHost\RemoteScanner.ScanHost.csproj') `
+    & dotnet publish (Join-Path $repoRoot 'src\ScanBridge.ScanHost\ScanBridge.ScanHost.csproj') `
         -c $Configuration -r win-x86 --self-contained true `
         -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true `
         -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=none `
         -o $hostStaging --nologo -v quiet
     Invoke-Checked "32-bit scan host publish"
 
-    Copy-WithRetry (Join-Path $hostStaging 'RemoteScanner.ScanHost.exe') `
-                   (Join-Path $payloadOut 'RemoteScanner.ScanHost.exe')
+    Copy-WithRetry (Join-Path $hostStaging 'ScanBridge.ScanHost.exe') `
+                   (Join-Path $payloadOut 'ScanBridge.ScanHost.exe')
     Remove-Item $hostStaging -Recurse -Force -ErrorAction SilentlyContinue
 
-    $hostSize = [math]::Round((Get-Item (Join-Path $payloadOut 'RemoteScanner.ScanHost.exe')).Length / 1MB, 1)
-    Write-Host "    build\payload\x86\RemoteScanner.ScanHost.exe  ($hostSize MB)"
+    $hostSize = [math]::Round((Get-Item (Join-Path $payloadOut 'ScanBridge.ScanHost.exe')).Length / 1MB, 1)
+    Write-Host "    build\payload\x86\ScanBridge.ScanHost.exe  ($hostSize MB)"
 }
 
 # ----------------------------------------------------------------------- managed
 
 Write-Step "Restoring and building the solution"
-& dotnet build (Join-Path $repoRoot 'RemoteScanner.sln') -c $Configuration --nologo -v minimal
+& dotnet build (Join-Path $repoRoot 'ScanBridge.sln') -c $Configuration --nologo -v minimal
 Invoke-Checked "Solution build"
 
 if (-not $SkipTests) {
     Write-Step "Running unit tests"
-    & dotnet test (Join-Path $repoRoot 'tests\Unit\RemoteScanner.Tests.Unit.csproj') `
+    & dotnet test (Join-Path $repoRoot 'tests\Unit\ScanBridge.Tests.Unit.csproj') `
         -c $Configuration --nologo -v quiet
     Invoke-Checked "Unit tests"
 
@@ -172,26 +172,26 @@ New-Item -ItemType Directory -Force -Path $clientOut, "$clientOut\x64", "$client
 # Self-contained on purpose. This gets copied to colleagues' PCs by people who are not
 # administrators of anything, and "first install the .NET 8 Desktop Runtime" is a step that
 # turns a two-minute rollout into a support ticket. The extra ~140 MB is worth it.
-& dotnet publish (Join-Path $repoRoot 'src\RemoteScanner.Client.UI\RemoteScanner.Client.UI.csproj') `
+& dotnet publish (Join-Path $repoRoot 'src\ScanBridge.Client\ScanBridge.Client.csproj') `
     -c $Configuration -r win-x64 --self-contained true -o $clientOut --nologo -v quiet
 Invoke-Checked "Client publish"
 
-& dotnet publish (Join-Path $repoRoot 'src\RemoteScanner.ScanHost\RemoteScanner.ScanHost.csproj') `
+& dotnet publish (Join-Path $repoRoot 'src\ScanBridge.ScanHost\ScanBridge.ScanHost.csproj') `
     -c $Configuration -r win-x64 --self-contained true -o "$clientOut\x64" --nologo -v quiet
 Invoke-Checked "ScanHost x64 publish"
 
 # The x86 host is self-contained: it exists to load 32-bit scanner drivers, and requiring
 # users to also install the x86 .NET runtime for that would be a needless support burden.
-& dotnet publish (Join-Path $repoRoot 'src\RemoteScanner.ScanHost\RemoteScanner.ScanHost.csproj') `
+& dotnet publish (Join-Path $repoRoot 'src\ScanBridge.ScanHost\ScanBridge.ScanHost.csproj') `
     -c $Configuration -r win-x86 --self-contained true -o "$clientOut\x86" --nologo -v quiet
 Invoke-Checked "ScanHost x86 publish"
 
 foreach ($arch in @('x64', 'x86')) {
-    $plugin = Join-Path $repoRoot "build\$arch\RemoteScanner.DvcPlugin.dll"
+    $plugin = Join-Path $repoRoot "build\$arch\ScanBridge.DvcPlugin.dll"
     if (Test-Path $plugin) {
         Copy-Item $plugin -Destination (Join-Path $clientOut $arch) -Force
     } elseif (-not $SkipNative) {
-        throw "RemoteScanner.DvcPlugin.dll ($arch) was not produced by the native build."
+        throw "ScanBridge.DvcPlugin.dll ($arch) was not produced by the native build."
     }
 }
 
@@ -206,16 +206,16 @@ New-Item -ItemType Directory -Force -Path $serverOut, "$serverOut\x64", "$server
 #
 # One publish, not two. The session agent is a role of this executable rather than a program of
 # its own, so there is no second binary to keep in step.
-& dotnet publish (Join-Path $repoRoot 'src\RemoteScanner.Service\RemoteScanner.Service.csproj') `
+& dotnet publish (Join-Path $repoRoot 'src\ScanBridge.Server\ScanBridge.Server.csproj') `
     -c $Configuration -r win-x64 --self-contained true -o $serverOut --nologo -v quiet
 Invoke-Checked "Server publish"
 
 foreach ($arch in @('x64', 'x86')) {
-    $dataSource = Join-Path $repoRoot "build\$arch\RemoteScanner.ds"
+    $dataSource = Join-Path $repoRoot "build\$arch\ScanBridge.ds"
     if (Test-Path $dataSource) {
         Copy-Item $dataSource -Destination (Join-Path $serverOut $arch) -Force
     } elseif (-not $SkipNative) {
-        throw "RemoteScanner.ds ($arch) was not produced by the native build."
+        throw "ScanBridge.ds ($arch) was not produced by the native build."
     }
 
     # Diagnostic tools travel with the server payload: a scanner that fails to appear can
@@ -272,47 +272,48 @@ Copy-Item (Join-Path $scriptRoot 'READ-ME-FIRST-SERVER.txt') `
 # Compression roughly halves it at the cost of a second or so of first-run extraction, which is
 # the right trade for something copied across a network to a server.
 
-Write-Step "Packing the server into one file"
 $distOut = Join-Path $buildRoot 'dist'
 New-Item -ItemType Directory -Force -Path $distOut | Out-Null
 
-& dotnet publish (Join-Path $repoRoot 'src\RemoteScanner.Service\RemoteScanner.Service.csproj') `
-    -c $Configuration -r win-x64 --self-contained true `
-    -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true `
-    -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=none `
-    -o (Join-Path $buildRoot 'dist-staging') --nologo -v quiet
-Invoke-Checked "Server single-file publish"
+# Every single-file publish stages through TEMP.
+#
+# The bundler writes its output, then rewrites the same file in place to append the payload.
+# In a synced folder — this repository can live in OneDrive — the sync client opens the file
+# the moment it appears, and the rewrite fails with "the process cannot access the file". The
+# build had done nothing wrong; it simply lost a race with a file watcher. TEMP is not synced.
+function Publish-SingleFile($project, $producedName, $distName, $description) {
+    $staging = Join-Path $env:TEMP "sb-pack-$([guid]::NewGuid().ToString('N').Substring(0,8))"
 
-$packed = Join-Path $buildRoot 'dist-staging\RemoteScanner.Service.exe'
-if (-not (Test-Path $packed)) { throw "The single-file publish produced no executable." }
+    & dotnet publish $project `
+        -c $Configuration -r win-x64 --self-contained true `
+        -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true `
+        -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=none `
+        -o $staging --nologo -v quiet
+    Invoke-Checked $description
 
-Copy-Item $packed -Destination (Join-Path $distOut 'RemoteScanner-Server.exe') -Force
-Remove-Item (Join-Path $buildRoot 'dist-staging') -Recurse -Force -ErrorAction SilentlyContinue
+    $produced = Join-Path $staging $producedName
+    if (-not (Test-Path $produced)) { throw "$description produced no executable." }
 
-$packedSize = [math]::Round((Get-Item (Join-Path $distOut 'RemoteScanner-Server.exe')).Length / 1MB, 1)
-Write-Host "    build\dist\RemoteScanner-Server.exe  ($packedSize MB, carries both data sources)"
+    Copy-WithRetry $produced (Join-Path $distOut $distName)
+    Remove-Item $staging -Recurse -Force -ErrorAction SilentlyContinue
+
+    return [math]::Round((Get-Item (Join-Path $distOut $distName)).Length / 1MB, 1)
+}
+
+Write-Step "Packing the server into one file"
+$packedSize = Publish-SingleFile (Join-Path $repoRoot 'src\ScanBridge.Server\ScanBridge.Server.csproj') `
+    'ScanBridge.Server.exe' 'ScanBridge-Server.exe' 'Server single-file publish'
+Write-Host "    build\dist\ScanBridge-Server.exe  ($packedSize MB, carries both data sources)"
 
 Write-Step "Packing the client into one file"
-& dotnet publish (Join-Path $repoRoot 'src\RemoteScanner.Client.UI\RemoteScanner.Client.UI.csproj') `
-    -c $Configuration -r win-x64 --self-contained true `
-    -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true `
-    -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=none `
-    -o (Join-Path $buildRoot 'dist-staging') --nologo -v quiet
-Invoke-Checked "Client single-file publish"
-
-$packedClient = Join-Path $buildRoot 'dist-staging\RemoteScanner.Client.exe'
-if (-not (Test-Path $packedClient)) { throw "The client single-file publish produced no executable." }
-
-Copy-Item $packedClient -Destination (Join-Path $distOut 'RemoteScanner-Client.exe') -Force
-Remove-Item (Join-Path $buildRoot 'dist-staging') -Recurse -Force -ErrorAction SilentlyContinue
-
-$clientSize = [math]::Round((Get-Item (Join-Path $distOut 'RemoteScanner-Client.exe')).Length / 1MB, 1)
-Write-Host "    build\dist\RemoteScanner-Client.exe  ($clientSize MB, carries the add-in and the 32-bit host)"
+$clientSize = Publish-SingleFile (Join-Path $repoRoot 'src\ScanBridge.Client\ScanBridge.Client.csproj') `
+    'ScanBridge.Client.exe' 'ScanBridge-Client.exe' 'Client single-file publish'
+Write-Host "    build\dist\ScanBridge-Client.exe  ($clientSize MB, carries the add-in and the 32-bit host)"
 
 # The payload has to be inside, not merely intended to be. A build that missed it looks
 # identical from outside and fails at the last step of an install, on somebody else's machine.
 Write-Step "Checking both installers carry their payload"
-foreach ($installer in @('RemoteScanner-Server.exe', 'RemoteScanner-Client.exe')) {
+foreach ($installer in @('ScanBridge-Server.exe', 'ScanBridge-Client.exe')) {
     $probe = Join-Path $env:TEMP "rs-payload-check-$([guid]::NewGuid().ToString('N').Substring(0,8))"
     & (Join-Path $distOut $installer) --extract $probe | Out-Null
     if ($LASTEXITCODE -ne 0) { throw "$installer carries no payload (exit $LASTEXITCODE)." }
@@ -345,17 +346,17 @@ $managerCandidates = @(
 
 $manager = $managerCandidates | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
 $probe = Join-Path $serverOut 'x64\dsmprobe.exe'
-$dataSource = Join-Path $serverOut 'x64\RemoteScanner.ds'
+$dataSource = Join-Path $serverOut 'x64\ScanBridge.ds'
 
 if (-not $manager) {
     Write-Host "    No TWAIN manager installed on this machine; skipping." -ForegroundColor Yellow
     Write-Host "    Install NAPS2 to have every build verified automatically."
 } elseif (-not (Test-Path $probe) -or -not (Test-Path $dataSource)) {
-    Write-Host "    dsmprobe.exe or RemoteScanner.ds is missing; skipping." -ForegroundColor Yellow
+    Write-Host "    dsmprobe.exe or ScanBridge.ds is missing; skipping." -ForegroundColor Yellow
 } else {
     & $probe $manager $dataSource | Write-Host
     if ($LASTEXITCODE -ne 0) {
-        throw "A real TWAIN manager could not discover RemoteScanner.ds (dsmprobe exit $LASTEXITCODE). " +
+        throw "A real TWAIN manager could not discover ScanBridge.ds (dsmprobe exit $LASTEXITCODE). " +
               "No scanning application would list this build. See docs/04-TROUBLESHOOTING.md."
     }
     Write-Host "    A real TWAIN manager discovers the data source." -ForegroundColor Green

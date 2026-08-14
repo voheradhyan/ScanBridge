@@ -19,7 +19,7 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 
-namespace RemoteScanner.ConstantCheck;
+namespace ScanBridge.ConstantCheck;
 
 internal static class Program
 {
@@ -93,7 +93,7 @@ internal static class Program
         var sources = new[]
         {
             Path.Combine(repo, "native", "include", "rs_twain.h"),
-            Path.Combine(repo, "src", "RemoteScanner.Scanner", "Twain", "TwainTypes.cs"),
+            Path.Combine(repo, "src", "ScanBridge.Scanner", "Twain", "TwainTypes.cs"),
         };
 
         var wrong = new List<string>();

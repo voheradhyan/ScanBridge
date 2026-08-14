@@ -1,9 +1,9 @@
 using System.Net;
 using System.Net.Sockets;
-using RemoteScanner.Protocol;
+using ScanBridge.Protocol;
 using Xunit;
 
-namespace RemoteScanner.Tests.Unit;
+namespace ScanBridge.Tests.Unit;
 
 /// <summary>
 /// The handshake that guards the direct network transport.

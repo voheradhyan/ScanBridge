@@ -1,7 +1,7 @@
-using RemoteScanner.Protocol;
+using ScanBridge.Protocol;
 using Xunit;
 
-namespace RemoteScanner.Tests.Unit;
+namespace ScanBridge.Tests.Unit;
 
 /// <summary>
 /// The wire format is implemented twice — once in C# and once by hand in C++ for the data

@@ -1,12 +1,12 @@
 @echo off
 REM ============================================================================
-REM  Remote Scanner - check the server is set up correctly.
+REM  ScanBridge - check the server is set up correctly.
 REM
 REM  Double-click after installing. It changes nothing - it only looks.
 REM  Run it again any time the scanner stops appearing for users.
 REM ============================================================================
 
-title Remote Scanner - Check Server
+title ScanBridge - Check Server
 color 0B
 
 net session >nul 2>&1

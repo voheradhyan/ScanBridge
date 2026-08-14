@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AssemblyName>ScanBridge.ScanHost</AssemblyName>
+    <RootNamespace>ScanBridge.ScanHost</RootNamespace>
+    <!-- Published twice, x86 and x64, so a data source of either bitness can be loaded.
+         See docs/01-FEASIBILITY.md section 5. -->
+    <Platforms>x64;x86</Platforms>
+    <RuntimeIdentifiers>win-x64;win-x86</RuntimeIdentifiers>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ScanBridge.Common\ScanBridge.Common.csproj" />
+    <ProjectReference Include="..\ScanBridge.Protocol\ScanBridge.Protocol.csproj" />
+    <ProjectReference Include="..\ScanBridge.Scanner\ScanBridge.Scanner.csproj" />
+  </ItemGroup>
+
+</Project>

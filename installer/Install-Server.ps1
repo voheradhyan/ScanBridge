@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Installs the RemoteScanner server component on a Windows Server RDS host.
+    Installs the ScanBridge server component on a Windows Server RDS host.
 
 .DESCRIPTION
     Installs the virtual TWAIN data source into both TWAIN search paths, installs the control
@@ -23,7 +23,7 @@
 [CmdletBinding()]
 param(
     [string] $Source,
-    [string] $InstallDirectory = (Join-Path $env:ProgramFiles 'RemoteScanner'),
+    [string] $InstallDirectory = (Join-Path $env:ProgramFiles 'ScanBridge'),
     [switch] $NoStart
 )
 
@@ -37,7 +37,7 @@ $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 #   * developing - it sits in installer\ and the payload is in ..\build\server
 # The deployed case is checked first, because that is the one real users hit.
 if (-not $Source) {
-    if (Test-Path (Join-Path $scriptRoot 'RemoteScanner.Service.exe')) {
+    if (Test-Path (Join-Path $scriptRoot 'ScanBridge.Server.exe')) {
         $Source = $scriptRoot
     } else {
         $Source = Join-Path (Split-Path -Parent $scriptRoot) 'build\server'
@@ -56,7 +56,7 @@ if (-not (Test-Path $Source)) {
     throw "Payload not found at '$Source'. Run installer\Build-All.ps1 first."
 }
 
-$serviceName = 'RemoteScanner'
+$serviceName = 'ScanBridge'
 
 Write-Step "Stopping any existing service"
 $existing = Get-Service -Name $serviceName -ErrorAction SilentlyContinue
@@ -76,7 +76,7 @@ if ($existing) {
 # authenticated, and then wait for a reply that can never come. It looks exactly like the
 # scanner being offline.
 Write-Step "Stopping session agents left over from a previous install"
-$orphans = @(Get-Process -Name 'RemoteScanner.SessionAgent' -ErrorAction SilentlyContinue)
+$orphans = @(Get-Process -Name 'ScanBridge.SessionAgent' -ErrorAction SilentlyContinue)
 if ($orphans.Count -eq 0) {
     Write-Host "    none running"
 } else {
@@ -111,8 +111,8 @@ if ($sourceFull -ieq $targetFull) {
 # 64-bit TWAINDSM.dll searches C:\Windows\twain_64; the 32-bit DSM and the legacy
 # twain_32.dll search C:\Windows\twain_32. Each gets the matching build.
 $twainTargets = @(
-    @{ Dir = Join-Path $env:SystemRoot 'twain_64\RemoteScanner'; Source = Join-Path $Source 'x64\RemoteScanner.ds' },
-    @{ Dir = Join-Path $env:SystemRoot 'twain_32\RemoteScanner'; Source = Join-Path $Source 'x86\RemoteScanner.ds' }
+    @{ Dir = Join-Path $env:SystemRoot 'twain_64\ScanBridge'; Source = Join-Path $Source 'x64\ScanBridge.ds' },
+    @{ Dir = Join-Path $env:SystemRoot 'twain_32\ScanBridge'; Source = Join-Path $Source 'x86\ScanBridge.ds' }
 )
 
 Write-Step "Installing the virtual TWAIN data source"
@@ -123,8 +123,8 @@ foreach ($target in $twainTargets) {
     }
 
     New-Item -ItemType Directory -Force -Path $target.Dir | Out-Null
-    Copy-Item -Path $target.Source -Destination (Join-Path $target.Dir 'RemoteScanner.ds') -Force
-    Write-Host "    $($target.Dir)\RemoteScanner.ds"
+    Copy-Item -Path $target.Source -Destination (Join-Path $target.Dir 'ScanBridge.ds') -Force
+    Write-Host "    $($target.Dir)\ScanBridge.ds"
 
     # The per-vendor sub-folder is the only correct location, and an earlier version of this
     # installer also dropped a copy directly in twain_32\ / twain_64\ on the theory that the
@@ -135,7 +135,7 @@ foreach ($target in $twainTargets) {
     #
     # So the stale copy is removed rather than refreshed, which also repairs a machine that
     # was installed with the earlier version.
-    $stale = Join-Path (Split-Path -Parent $target.Dir) 'RemoteScanner.ds'
+    $stale = Join-Path (Split-Path -Parent $target.Dir) 'ScanBridge.ds'
     if (Test-Path $stale) {
         try {
             Remove-Item -Path $stale -Force
@@ -149,13 +149,13 @@ foreach ($target in $twainTargets) {
 # ---------------------------------------------------------------------- service
 
 Write-Step "Registering the service"
-$serviceExe = Join-Path $InstallDirectory 'RemoteScanner.Service.exe'
-if (-not (Test-Path $serviceExe)) { throw "RemoteScanner.Service.exe is missing from the payload." }
+$serviceExe = Join-Path $InstallDirectory 'ScanBridge.Server.exe'
+if (-not (Test-Path $serviceExe)) { throw "ScanBridge.Server.exe is missing from the payload." }
 
 # LocalSystem is required: WTSQueryUserToken and CreateProcessAsUser need SeTcbPrivilege to
 # launch the per-session agent inside a user's RDP session.
 & sc.exe create $serviceName binPath= "`"$serviceExe`"" start= auto obj= LocalSystem `
-    DisplayName= "Remote Scanner Redirection" | Out-Null
+    DisplayName= "ScanBridge Redirection" | Out-Null
 & sc.exe description $serviceName `
     "Makes scanners attached to the client PC available to applications in an RDP session." | Out-Null
 
@@ -163,13 +163,13 @@ if (-not (Test-Path $serviceExe)) { throw "RemoteScanner.Service.exe is missing 
 & sc.exe failure $serviceName reset= 86400 actions= restart/5000/restart/10000/restart/30000 | Out-Null
 
 Write-Step "Registering the event log source"
-if (-not [System.Diagnostics.EventLog]::SourceExists('RemoteScanner')) {
-    New-EventLog -LogName Application -Source 'RemoteScanner'
+if (-not [System.Diagnostics.EventLog]::SourceExists('ScanBridge')) {
+    New-EventLog -LogName Application -Source 'ScanBridge'
 }
 
 Write-Step "Setting the default log level"
-New-Item -Path 'HKLM:\SOFTWARE\RemoteScanner' -Force | Out-Null
-Set-ItemProperty -Path 'HKLM:\SOFTWARE\RemoteScanner' -Name 'LogLevel' -Value 'Information' -Type String
+New-Item -Path 'HKLM:\SOFTWARE\ScanBridge' -Force | Out-Null
+Set-ItemProperty -Path 'HKLM:\SOFTWARE\ScanBridge' -Name 'LogLevel' -Value 'Information' -Type String
 
 # ProgramData holds only the service's own log now, and the service runs as LocalSystem.
 #
@@ -178,8 +178,8 @@ Set-ItemProperty -Path 'HKLM:\SOFTWARE\RemoteScanner' -Name 'LogLevel' -Value 'I
 # user's logs — machine names, session ids, scanner models, connection times. Page content is
 # never written at any level, but that is still more than a colleague needs. Everything that
 # runs as a user now logs inside that user's own profile, so the default permissions stand.
-Write-Step "Preparing %ProgramData%\RemoteScanner"
-$dataDir = Join-Path $env:ProgramData 'RemoteScanner'
+Write-Step "Preparing %ProgramData%\ScanBridge"
+$dataDir = Join-Path $env:ProgramData 'ScanBridge'
 New-Item -ItemType Directory -Force -Path (Join-Path $dataDir 'logs') | Out-Null
 
 if (-not $NoStart) {
@@ -192,7 +192,7 @@ Write-Host ""
 Write-Host "Server component installed." -ForegroundColor Green
 Write-Host ""
 Write-Host "Applications in an RDP session will now list a scanner named"
-Write-Host "  'Remote Scanner (<client PC name>)'"
-Write-Host "once a client connects with the RemoteScanner add-in registered."
+Write-Host "  'ScanBridge (<client PC name>)'"
+Write-Host "once a client connects with the ScanBridge add-in registered."
 Write-Host ""
 Write-Host "Logs: $dataDir\logs"

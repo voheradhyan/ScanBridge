@@ -1,12 +1,12 @@
 @echo off
 REM ============================================================================
-REM  Remote Scanner - remove from this PC.
+REM  ScanBridge - remove from this PC.
 REM
 REM  Double-click. Removes the Remote Desktop add-in, the startup entry, the
 REM  stored key, and the installed files.
 REM ============================================================================
 
-title Remote Scanner - Uninstall
+title ScanBridge - Uninstall
 color 0E
 
 echo.
@@ -14,11 +14,11 @@ echo   ============================================
 echo     REMOTE SCANNER - UNINSTALL
 echo   ============================================
 echo.
-echo   This removes Remote Scanner from this PC.
+echo   This removes ScanBridge from this PC.
 echo   Your scanner and its own driver are NOT affected.
 echo.
 
-choice /C YN /M "   Remove Remote Scanner"
+choice /C YN /M "   Remove ScanBridge"
 if errorlevel 2 (
     echo.
     echo   Cancelled. Nothing was changed.

@@ -1,6 +1,6 @@
 @echo off
 REM ============================================================================
-REM  Remote Scanner - remove from the Windows Server.
+REM  ScanBridge - remove from the Windows Server.
 REM
 REM  Double-click this file. It asks for administrator rights itself, so there
 REM  is no need to right-click it or open PowerShell.
@@ -14,7 +14,7 @@ REM  That menu item runs PowerShell WITHOUT elevation, so the script gets as far
 REM  as its administrator check and refuses, with no obvious way forward.
 REM ============================================================================
 
-title Remote Scanner - Remove from Server
+title ScanBridge - Remove from Server
 color 0B
 
 net session >nul 2>&1

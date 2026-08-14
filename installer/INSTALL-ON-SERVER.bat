@@ -1,6 +1,6 @@
 @echo off
 REM ============================================================================
-REM  Remote Scanner - install on the Windows Server everyone remotes into.
+REM  ScanBridge - install on the Windows Server everyone remotes into.
 REM
 REM  Double-click this file. It asks for administrator rights itself, so there
 REM  is no need to right-click.
@@ -9,7 +9,7 @@ REM  Administrator IS required here: it writes the virtual scanner driver into
 REM  C:\Windows\twain_32 and twain_64, and registers a Windows service.
 REM ============================================================================
 
-title Remote Scanner - Install on Server
+title ScanBridge - Install on Server
 color 0B
 
 net session >nul 2>&1

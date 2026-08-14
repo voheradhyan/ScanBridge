@@ -1,4 +1,4 @@
-// rs_twain.h — TWAIN 2.4 ABI subset required by RemoteScanner's virtual Data Source.
+// rs_twain.h — TWAIN 2.4 ABI subset required by ScanBridge's virtual Data Source.
 //
 // This is an interface definition, not an implementation: the layouts, packing and
 // calling convention below are dictated by the TWAIN specification and by every DSM

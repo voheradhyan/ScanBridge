@@ -35,7 +35,7 @@
 
   STEP 4
      Look at the bottom-right of your screen, near the clock.
-     There is now a Remote Scanner icon. You may need to click
+     There is now a ScanBridge icon. You may need to click
      the small arrow (^) to see it.
 
   That is the whole installation. It starts automatically
@@ -64,7 +64,7 @@
   4. Choose Scan, or Import, or Acquire.
      When it asks which scanner, pick:
 
-         Remote Scanner (YOUR-PC-NAME)
+         ScanBridge (YOUR-PC-NAME)
 
   5. Scan as normal. The pages appear on the server.
 

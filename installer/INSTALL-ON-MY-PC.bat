@@ -1,6 +1,6 @@
 @echo off
 REM ============================================================================
-REM  Remote Scanner - install on a PC that has a scanner attached.
+REM  ScanBridge - install on a PC that has a scanner attached.
 REM
 REM  Double-click this file. Do NOT right-click "Run as administrator".
 REM
@@ -10,7 +10,7 @@ REM  administrator account instead, and it would silently never load - so this
 REM  script refuses to run elevated rather than appearing to succeed.
 REM ============================================================================
 
-title Remote Scanner - Install on this PC
+title ScanBridge - Install on this PC
 color 0B
 
 echo.
@@ -56,7 +56,7 @@ if %RESULT% neq 0 (
     echo     DONE
     echo   ============================================
     echo.
-    echo   Look for the Remote Scanner icon near the clock,
+    echo   Look for the ScanBridge icon near the clock,
     echo   at the bottom-right of your screen.
     echo.
     echo   IMPORTANT - connect to the server using "Remote Desktop

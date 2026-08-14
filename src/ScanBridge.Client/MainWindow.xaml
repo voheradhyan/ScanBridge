@@ -1,0 +1,119 @@
+<Window x:Class="ScanBridge.Client.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="ScanBridge" Height="580" Width="880"
+        WindowStartupLocation="CenterScreen"
+        Background="#FAFAFA">
+
+    <Window.Resources>
+        <Style TargetType="TextBlock" x:Key="Heading">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="#1F1F1F" />
+            <Setter Property="Margin" Value="0,0,0,6" />
+        </Style>
+        <Style TargetType="DataGrid">
+            <Setter Property="AutoGenerateColumns" Value="False" />
+            <Setter Property="IsReadOnly" Value="True" />
+            <Setter Property="HeadersVisibility" Value="Column" />
+            <Setter Property="GridLinesVisibility" Value="Horizontal" />
+            <Setter Property="HorizontalGridLinesBrush" Value="#E8E8E8" />
+            <Setter Property="BorderBrush" Value="#DDDDDD" />
+            <Setter Property="Background" Value="White" />
+            <Setter Property="RowHeight" Value="26" />
+            <Setter Property="SelectionMode" Value="Single" />
+        </Style>
+        <Style TargetType="Button">
+            <Setter Property="Padding" Value="14,6" />
+            <Setter Property="Margin" Value="0,0,8,0" />
+            <Setter Property="MinWidth" Value="96" />
+        </Style>
+
+        <!--
+            The scanner the remote session gets is picked out of the list, because which one it
+            is matters more than anything else on this screen and was previously only findable
+            by reading a column. Green while a remote session is actually using it; a calm blue
+            when it is merely the one that would be used.
+
+            Selection still wins: the user needs to see what they are about to act on, so a
+            selected row keeps the normal highlight regardless.
+        -->
+        <Style TargetType="DataGridRow" x:Key="ScannerRowStyle">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsDefault}" Value="True">
+                    <Setter Property="Background" Value="#EAF3FF" />
+                    <Setter Property="FontWeight" Value="SemiBold" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding IsLive}" Value="True">
+                    <Setter Property="Background" Value="#E3F7E8" />
+                    <Setter Property="FontWeight" Value="SemiBold" />
+                </DataTrigger>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#0078D4" />
+                    <Setter Property="Foreground" Value="White" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+
+    <DockPanel Margin="16">
+
+        <!-- Status strip -->
+        <Border DockPanel.Dock="Bottom" Background="#F0F0F0" BorderBrush="#DDDDDD"
+                BorderThickness="1" Padding="10,6" Margin="0,12,0,0">
+            <TextBlock x:Name="StatusText" Text="Starting..." Foreground="#333333" />
+        </Border>
+
+        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,12,0,0">
+            <Button x:Name="UseForRemoteButton" Content="Use for Remote" Click="OnUseForRemote"
+                    ToolTip="Give this scanner to applications running in the Remote Desktop session."
+                    MinWidth="120" />
+            <Button x:Name="ScanButton" Content="Test Scan" Click="OnTestScan"
+                    ToolTip="Scan one page here, locally, to check the scanner itself works." />
+            <Button x:Name="PairingButton" Content="Pairing Code" Click="OnPairingCode"
+                    ToolTip="Needed only if scanning over Remote Desktop does not work by itself." />
+            <Button x:Name="SettingsButton" Content="Scanner Settings" Click="OnSettings" />
+            <Button x:Name="TestButton" Content="Test Connection" Click="OnTestConnection" />
+            <Button x:Name="RefreshButton" Content="Refresh" Click="OnRefresh" />
+            <Button x:Name="DiagnosticsButton" Content="Diagnostics" Click="OnDiagnostics" />
+            <Button x:Name="LogsButton" Content="Logs" Click="OnOpenLogs" />
+        </StackPanel>
+
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <TextBlock Grid.Row="0" Style="{StaticResource Heading}"
+                       Text="Remote Desktop connections using this scanner" />
+            <DataGrid Grid.Row="1" x:Name="SessionsGrid" MinHeight="120">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Link" Binding="{Binding Id}" Width="60" />
+                    <DataGridTextColumn Header="From" Binding="{Binding PeerName}" Width="*" />
+                    <DataGridTextColumn Header="Connected at" Binding="{Binding Connected}" Width="140" />
+                    <DataGridTextColumn Header="Up for" Binding="{Binding Age}" Width="120" />
+                </DataGrid.Columns>
+            </DataGrid>
+            <TextBlock Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center"
+                       x:Name="NoLinksHint" Foreground="#888888" TextAlignment="Center"
+                       Text="No Remote Desktop connection is using this scanner yet.&#10;Connect with Remote Desktop Connection (mstsc) and this fills in." />
+
+            <TextBlock Grid.Row="2" Style="{StaticResource Heading}" Margin="0,16,0,6"
+                       Text="Detected scanners  —  select one and click &quot;Use for Remote&quot; to choose which one the Remote Desktop session gets" />
+            <DataGrid Grid.Row="3" x:Name="ScannersGrid" MinHeight="120"
+                      RowStyle="{StaticResource ScannerRowStyle}">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Used remotely" Binding="{Binding RemoteUse}" Width="130" />
+                    <DataGridTextColumn Header="Remote activity" Binding="{Binding RemoteActivity}" Width="110" />
+                    <DataGridTextColumn Header="Scanner" Binding="{Binding Name}" Width="*" />
+                    <DataGridTextColumn Header="Interface" Binding="{Binding Interface}" Width="80" />
+                    <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="80" />
+                </DataGrid.Columns>
+            </DataGrid>
+        </Grid>
+
+    </DockPanel>
+</Window>

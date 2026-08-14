@@ -201,7 +201,7 @@ inline std::vector<uint8_t> loadProtectedSecret(const std::wstring& subKey, cons
     closeUserHive(hive);
 
     if (opened != ERROR_SUCCESS)
-        throw PipeError("shared secret not present; is the RemoteScanner agent running in this session?");
+        throw PipeError("shared secret not present; is the ScanBridge agent running in this session?");
 
     RS_LOG_DEBUG("reading the shared secret from %S (hive resolved %s)",
                  subKey.c_str(), viaSid ? "by SID" : "through the process default");
@@ -313,7 +313,7 @@ public:
 
             DWORD remaining = (GetTickCount() >= deadline) ? 0 : deadline - GetTickCount();
             if (remaining == 0)
-                throw PipeError("timed out connecting to the RemoteScanner agent", error);
+                throw PipeError("timed out connecting to the ScanBridge agent", error);
 
             // ERROR_FILE_NOT_FOUND means the server has not created the pipe yet; poll.
             if (error == ERROR_FILE_NOT_FOUND) Sleep(100);
@@ -541,8 +541,8 @@ private:
 
 // ---------------------------------------------------------------- handshake
 
-constexpr char kInitiatorLabel[] = "RemoteScanner/v1/initiator";
-constexpr char kResponderLabel[] = "RemoteScanner/v1/responder";
+constexpr char kInitiatorLabel[] = "ScanBridge/v1/initiator";
+constexpr char kResponderLabel[] = "ScanBridge/v1/responder";
 
 inline std::vector<uint8_t> computeMac(const std::vector<uint8_t>& key,
                                        const char* label,
@@ -592,7 +592,7 @@ inline uint32_t performHandshake(PipeClient& pipe,
     PayloadReader r = ack.reader();
     uint8_t negotiated = r.u8();
     if (negotiated != kVersion)
-        throw PipeError("protocol version mismatch with the RemoteScanner agent");
+        throw PipeError("protocol version mismatch with the ScanBridge agent");
     r.u8();          // peer role
     r.str();         // peer machine name
     std::vector<uint8_t> peerNonce = r.fixedBytes(kNonceLength);

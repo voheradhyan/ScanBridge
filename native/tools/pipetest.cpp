@@ -96,7 +96,7 @@ private:
 
 std::wstring uniqueName(const wchar_t* tag) {
     wchar_t buffer[128]{};
-    _snwprintf_s(buffer, _TRUNCATE, L"RemoteScanner.Test.%s.%lu", tag, GetCurrentProcessId());
+    _snwprintf_s(buffer, _TRUNCATE, L"ScanBridge.Test.%s.%lu", tag, GetCurrentProcessId());
     return buffer;
 }
 
@@ -356,7 +356,7 @@ void checkHandshakeAgainstTheLocalAgent() {
 
     std::vector<uint8_t> secret;
     try {
-        secret = loadProtectedSecret(L"Software\\RemoteScanner", L"Secret");
+        secret = loadProtectedSecret(L"Software\\ScanBridge", L"Secret");
     }
     catch (const std::exception& ex) {
         printf("  [skip] %s (%s)\n", name, ex.what());

@@ -1,8 +1,8 @@
-﻿using RemoteScanner.Agent;
-using RemoteScanner.Protocol;
+using ScanBridge.Agent;
+using ScanBridge.Protocol;
 using Xunit;
 
-namespace RemoteScanner.Tests.Unit;
+namespace ScanBridge.Tests.Unit;
 
 /// <summary>
 /// Tests for the list a remote session is offered.

@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AssemblyName>ScanBridge.Server</AssemblyName>
+    <RootNamespace>ScanBridge.Server</RootNamespace>
+    <PlatformTarget>x64</PlatformTarget>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- ServiceBase, for the session-change notifications the whole design depends on. -->
+    <PackageReference Include="System.ServiceProcess.ServiceController" Version="8.0.1" />
+  </ItemGroup>
+
+  <!-- The two data sources travel inside this executable and are written into the system TWAIN
+       folders when it installs itself. A TWAIN manager looks nowhere else, so they cannot stay
+       resources, but the thing a person downloads is still one file.
+
+       Conditional because a plain "dotnet build" without the native build having run should
+       still compile; EmbeddedPayload.Extract then reports precisely what is missing and how to
+       produce it, rather than failing at a null stream. -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\build\x64\ScanBridge.ds"
+                      Condition="Exists('..\..\build\x64\ScanBridge.ds')"
+                      LogicalName="ScanBridge.Payload.x64/ScanBridge.ds" />
+    <EmbeddedResource Include="..\..\build\x86\ScanBridge.ds"
+                      Condition="Exists('..\..\build\x86\ScanBridge.ds')"
+                      LogicalName="ScanBridge.Payload.x86/ScanBridge.ds" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ScanBridge.Common\ScanBridge.Common.csproj" />
+    <ProjectReference Include="..\ScanBridge.Rdp\ScanBridge.Rdp.csproj" />
+    <!-- The session-agent role, hosted by this executable rather than shipped as its own. -->
+    <ProjectReference Include="..\ScanBridge.SessionAgent\ScanBridge.SessionAgent.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Installs the RemoteScanner client on the PC the scanner is plugged into.
+    Installs the ScanBridge client on the PC the scanner is plugged into.
 
 .DESCRIPTION
     Copies the client payload, registers the RDP add-in with the Remote Desktop client, and
@@ -16,7 +16,7 @@
     Directory holding the built payload. Defaults to ..\build\client next to this script.
 
 .PARAMETER InstallDirectory
-    Where to install. Defaults to %LOCALAPPDATA%\Programs\RemoteScanner.
+    Where to install. Defaults to %LOCALAPPDATA%\Programs\ScanBridge.
 
 .EXAMPLE
     .\Install-Client.ps1
@@ -24,7 +24,7 @@
 [CmdletBinding()]
 param(
     [string] $Source,
-    [string] $InstallDirectory = (Join-Path $env:LOCALAPPDATA 'Programs\RemoteScanner'),
+    [string] $InstallDirectory = (Join-Path $env:LOCALAPPDATA 'Programs\ScanBridge'),
     [switch] $NoStart
 )
 
@@ -36,7 +36,7 @@ $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 # Runs both from inside the copied payload folder (what users do) and from installer\
 # during development. The deployed case is checked first.
 if (-not $Source) {
-    if (Test-Path (Join-Path $scriptRoot 'RemoteScanner.Client.exe')) {
+    if (Test-Path (Join-Path $scriptRoot 'ScanBridge.Client.exe')) {
         $Source = $scriptRoot
     } else {
         $Source = Join-Path (Split-Path -Parent $scriptRoot) 'build\client'
@@ -70,19 +70,19 @@ if (-not (Test-Path $Source)) {
     throw "Payload not found at '$Source'. Run installer\Build-All.ps1 first."
 }
 
-$pluginPath = Join-Path $Source 'x64\RemoteScanner.DvcPlugin.dll'
+$pluginPath = Join-Path $Source 'x64\ScanBridge.DvcPlugin.dll'
 if (-not (Test-Path $pluginPath)) {
-    throw "RemoteScanner.DvcPlugin.dll (x64) is missing from '$Source'. The build is incomplete."
+    throw "ScanBridge.DvcPlugin.dll (x64) is missing from '$Source'. The build is incomplete."
 }
 
 Write-Step "Stopping any running agent"
-Get-Process -Name 'RemoteScanner.Client', 'RemoteScanner.Agent', 'RemoteScanner.ScanHost' `
+Get-Process -Name 'ScanBridge.Client', 'ScanBridge.Agent', 'ScanBridge.ScanHost' `
     -ErrorAction SilentlyContinue | ForEach-Object {
         $_ | Stop-Process -Force
         $_.WaitForExit(5000) | Out-Null
     }
 
-# mstsc.exe maps RemoteScanner.DvcPlugin.dll for the life of the connection and will not
+# mstsc.exe maps ScanBridge.DvcPlugin.dll for the life of the connection and will not
 # release it, so an upgrade cannot overwrite the file while a Remote Desktop window is open.
 # Killing mstsc would drop the user's session without warning, so we ask instead and wait.
 $mstsc = @(Get-Process mstsc -ErrorAction SilentlyContinue)
@@ -126,8 +126,8 @@ if ($sourceFull -ieq $targetFull) {
     } catch [System.IO.IOException] {
         # Almost always a file still mapped by a process we did not catch above. Naming the
         # likely culprits is far more use than the raw "used by another process" error.
-        $holders = @(Get-Process mstsc, RemoteScanner.Client, RemoteScanner.Agent, `
-                                 RemoteScanner.ScanHost -ErrorAction SilentlyContinue)
+        $holders = @(Get-Process mstsc, ScanBridge.Client, ScanBridge.Agent, `
+                                 ScanBridge.ScanHost -ErrorAction SilentlyContinue)
         Write-Host ""
         Write-Warn "A file is still in use and could not be replaced."
         if ($holders.Count -gt 0) {
@@ -142,10 +142,10 @@ if ($sourceFull -ieq $targetFull) {
 }
 
 # mstsc.exe is 64-bit on 64-bit Windows, so that is the plugin it will load.
-$installedPlugin = Join-Path $InstallDirectory 'x64\RemoteScanner.DvcPlugin.dll'
+$installedPlugin = Join-Path $InstallDirectory 'x64\ScanBridge.DvcPlugin.dll'
 
 Write-Step "Registering the RDP add-in"
-$addInKey = 'HKCU:\Software\Microsoft\Terminal Server Client\Default\AddIns\RemoteScanner'
+$addInKey = 'HKCU:\Software\Microsoft\Terminal Server Client\Default\AddIns\ScanBridge'
 New-Item -Path $addInKey -Force | Out-Null
 Set-ItemProperty -Path $addInKey -Name 'Name' -Value $installedPlugin -Type String
 Write-Host "    $installedPlugin"
@@ -164,8 +164,8 @@ foreach ($hive in @('HKLM:', 'HKCU:')) {
     }
 
     $allowed = Get-RegValue $policy 'AllowedAddIns'
-    if ($allowed -and $allowed -notmatch 'RemoteScanner') {
-        Write-Warn "Policy 'AllowedAddIns' at $policy does not list RemoteScanner."
+    if ($allowed -and $allowed -notmatch 'ScanBridge') {
+        Write-Warn "Policy 'AllowedAddIns' at $policy does not list ScanBridge."
         $blocked = $true
     }
 }
@@ -179,9 +179,9 @@ if (-not $blocked) { Write-Host "    No blocking policy found." }
 # Scoped to the local subnet, TCP only, one port. The listener refuses anything that cannot
 # prove it holds this user's shared secret, and everything after that handshake is encrypted.
 Write-Step "Allowing direct connections from Remote Desktop servers"
-$ruleName = 'Remote Scanner (direct connection)'
+$ruleName = 'ScanBridge (direct connection)'
 $lanPort = 47214
-$agentExe = Join-Path $InstallDirectory 'RemoteScanner.Client.exe'
+$agentExe = Join-Path $InstallDirectory 'ScanBridge.Client.exe'
 
 # A firewall rule needs administrator rights, and the rest of this installer must NOT have
 # them — everything else it writes belongs to the current user's account. So exactly this one
@@ -219,7 +219,7 @@ if (Test-Path $agentExe) {
 
 Write-Step "Configuring startup"
 $runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
-Set-ItemProperty -Path $runKey -Name 'RemoteScanner' -Value "`"$agentExe`"" -Type String
+Set-ItemProperty -Path $runKey -Name 'ScanBridge' -Value "`"$agentExe`"" -Type String
 
 # The program lives under AppData, which Explorer hides by default. Without shortcuts there
 # is no way for an ordinary user to start it again after closing it, so both a Start Menu
@@ -228,8 +228,8 @@ Write-Step "Creating shortcuts"
 $shell = New-Object -ComObject WScript.Shell
 
 $shortcutTargets = @(
-    (Join-Path ([Environment]::GetFolderPath('Programs')) 'Remote Scanner.lnk'),
-    (Join-Path ([Environment]::GetFolderPath('Desktop'))  'Remote Scanner.lnk')
+    (Join-Path ([Environment]::GetFolderPath('Programs')) 'ScanBridge.lnk'),
+    (Join-Path ([Environment]::GetFolderPath('Desktop'))  'ScanBridge.lnk')
 )
 
 foreach ($linkPath in $shortcutTargets) {

@@ -43,11 +43,11 @@
     because older programs need one and newer ones need the
     other.
 
-  * A Windows service called "Remote Scanner Redirection".
+  * A Windows service called "ScanBridge Redirection".
     It starts automatically.
 
   Log files, if IT ever needs them:
-      %LocalAppData%\RemoteScanner\logs
+      %LocalAppData%\ScanBridge\logs
 
 
 ----------------------------------------------------------------
@@ -66,7 +66,7 @@
   IF SOMETHING DOES NOT WORK
 ----------------------------------------------------------------
 
-  On the SERVER, when a program does not list "Remote Scanner":
+  On the SERVER, when a program does not list "ScanBridge":
 
       Double-click:   CHECK-TWAIN.bat
 

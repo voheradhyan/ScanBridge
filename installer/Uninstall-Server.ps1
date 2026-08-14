@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Removes the RemoteScanner server component.
+    Removes the ScanBridge server component.
 
 .DESCRIPTION
     Stops and deletes the service, removes the virtual TWAIN data source from both TWAIN
@@ -14,7 +14,7 @@
 #>
 [CmdletBinding()]
 param(
-    [string] $InstallDirectory = (Join-Path $env:ProgramFiles 'RemoteScanner'),
+    [string] $InstallDirectory = (Join-Path $env:ProgramFiles 'ScanBridge'),
     [switch] $KeepLogs
 )
 
@@ -28,7 +28,7 @@ if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administra
     throw "This script must be run as administrator."
 }
 
-$serviceName = 'RemoteScanner'
+$serviceName = 'ScanBridge'
 
 Write-Step "Stopping the service"
 $service = Get-Service -Name $serviceName -ErrorAction SilentlyContinue
@@ -42,7 +42,7 @@ if ($service) {
 }
 
 Write-Step "Stopping session agents"
-Get-Process -Name 'RemoteScanner.SessionAgent' -ErrorAction SilentlyContinue | ForEach-Object {
+Get-Process -Name 'ScanBridge.SessionAgent' -ErrorAction SilentlyContinue | ForEach-Object {
     $_ | Stop-Process -Force
     $_.WaitForExit(5000) | Out-Null
 }
@@ -53,10 +53,10 @@ Write-Step "Removing the virtual TWAIN data source"
 # reads, and the top-level copy that the legacy Windows manager reads. Leaving either behind
 # would keep a dead scanner in every application's device list.
 foreach ($path in @(
-    (Join-Path $env:SystemRoot 'twain_64\RemoteScanner'),
-    (Join-Path $env:SystemRoot 'twain_32\RemoteScanner'),
-    (Join-Path $env:SystemRoot 'twain_64\RemoteScanner.ds'),
-    (Join-Path $env:SystemRoot 'twain_32\RemoteScanner.ds'))) {
+    (Join-Path $env:SystemRoot 'twain_64\ScanBridge'),
+    (Join-Path $env:SystemRoot 'twain_32\ScanBridge'),
+    (Join-Path $env:SystemRoot 'twain_64\ScanBridge.ds'),
+    (Join-Path $env:SystemRoot 'twain_32\ScanBridge.ds'))) {
 
     if (-not (Test-Path $path)) { continue }
 
@@ -72,11 +72,11 @@ foreach ($path in @(
 Write-Step "Removing per-session secrets"
 # Each session agent stored a DPAPI-protected key under its own user's hive; the ones under
 # HKLM and any orphaned machine state go here.
-Remove-Item -Path 'HKLM:\SOFTWARE\RemoteScanner' -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item -Path 'HKLM:\SOFTWARE\ScanBridge' -Recurse -Force -ErrorAction SilentlyContinue
 
 Write-Step "Removing the event log source"
-if ([System.Diagnostics.EventLog]::SourceExists('RemoteScanner')) {
-    Remove-EventLog -Source 'RemoteScanner'
+if ([System.Diagnostics.EventLog]::SourceExists('ScanBridge')) {
+    Remove-EventLog -Source 'ScanBridge'
 }
 
 Write-Step "Deleting installed files"
@@ -90,7 +90,7 @@ if (Test-Path $InstallDirectory) {
 
 if (-not $KeepLogs) {
     Write-Step "Removing logs and spooled scan data"
-    $dataDir = Join-Path $env:ProgramData 'RemoteScanner'
+    $dataDir = Join-Path $env:ProgramData 'ScanBridge'
     if (Test-Path $dataDir) { Remove-Item -Path $dataDir -Recurse -Force -ErrorAction SilentlyContinue }
 }
 

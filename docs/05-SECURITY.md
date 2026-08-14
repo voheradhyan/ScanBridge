@@ -23,7 +23,7 @@ Scanned page data, in transit between a user's PC and their RDP session, on a ma
 ## Trust boundaries
 
 ```
-[remote app] ──in-process──> [RemoteScanner.ds]
+[remote app] ──in-process──> [ScanBridge.ds]
                                     │  pipe, ACL = one SID, HMAC authenticated
                                     ▼
                              [SessionAgent]           ← runs AS THE USER, in their session
@@ -45,8 +45,8 @@ The two pipe hops *do*, because a pipe is reachable by anything running in the s
 
 Per-boot random 32-byte pre-shared key, DPAPI-protected under the current user:
 
-- Client PC: `HKCU\Software\RemoteScanner\Secret` — agent ⇄ DVC plugin
-- Server: `HKCU\Software\RemoteScanner\Session\<sessionId>\Secret` — session agent ⇄ data source
+- Client PC: `HKCU\Software\ScanBridge\Secret` — agent ⇄ DVC plugin
+- Server: `HKCU\Software\ScanBridge\Session\<sessionId>\Secret` — session agent ⇄ data source
 
 DPAPI user scope is what makes this work: only the user who wrote the key can unprotect it,
 so another user on the same Session Host cannot read it even with the registry path.
@@ -73,11 +73,11 @@ AUTH_RESULT   ok / bad credentials / version mismatch
 
 | Component | Runs as | Why |
 |---|---|---|
-| `RemoteScanner.Client` (tray) | Interactive user, **not elevated** | Only needs the user's own scanners and an HKCU registration |
+| `ScanBridge.Client` (tray) | Interactive user, **not elevated** | Only needs the user's own scanners and an HKCU registration |
 | `ScanHost` | Interactive user | Isolates vendor drivers |
-| `RemoteScanner.SessionAgent` | The logged-on user, in their session | Must be in-session for the WTS channel |
-| `RemoteScanner.Service` | LocalSystem | Needs `SeTcbPrivilege` for `WTSQueryUserToken` / `CreateProcessAsUser`. Handles no scan data. |
-| `RemoteScanner.ds` | Whatever loaded it | In-process by nature; holds no secrets beyond the session key it reads at open |
+| `ScanBridge.SessionAgent` | The logged-on user, in their session | Must be in-session for the WTS channel |
+| `ScanBridge.Server` | LocalSystem | Needs `SeTcbPrivilege` for `WTSQueryUserToken` / `CreateProcessAsUser`. Handles no scan data. |
+| `ScanBridge.ds` | Whatever loaded it | In-process by nature; holds no secrets beyond the session key it reads at open |
 
 The service is the only elevated piece and is deliberately kept small: watch session events,
 spawn and reap one child per session. It never touches page data.

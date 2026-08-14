@@ -49,7 +49,7 @@ public:
         wchar_t localAppData[MAX_PATH]{};
         if (FAILED(SHGetFolderPathW(nullptr, CSIDL_LOCAL_APPDATA, nullptr, 0, localAppData))) return;
 
-        std::wstring dir = std::wstring(localAppData) + L"\\RemoteScanner\\logs";
+        std::wstring dir = std::wstring(localAppData) + L"\\ScanBridge\\logs";
         createDirectoryTree(dir);
 
         wchar_t path[MAX_PATH]{};
@@ -106,7 +106,7 @@ private:
         }
     }
 
-    // Shares SOFTWARE\RemoteScanner\LogLevel with the managed side so one setting controls the
+    // Shares SOFTWARE\ScanBridge\LogLevel with the managed side so one setting controls the
     // whole stack.
     //
     // HKCU is consulted first and HKLM second. On a server the setting belongs in HKLM, where
@@ -124,7 +124,7 @@ private:
     /// Returns true when the key held a value we understood, so the caller knows to stop.
     static bool readLevelFrom(HKEY root, LogLevel& result) {
         HKEY key{};
-        if (RegOpenKeyExW(root, L"SOFTWARE\\RemoteScanner", 0, KEY_READ, &key) != ERROR_SUCCESS)
+        if (RegOpenKeyExW(root, L"SOFTWARE\\ScanBridge", 0, KEY_READ, &key) != ERROR_SUCCESS)
             return false;
 
         wchar_t value[32]{};

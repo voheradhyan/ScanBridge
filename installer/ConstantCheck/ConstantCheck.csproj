@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- Deliberately outside RemoteScanner.sln: this is a build gate, not a component, and
+  <!-- Deliberately outside ScanBridge.sln: this is a build gate, not a component, and
        nothing ships it. Build-All.ps1 runs it through "dotnet run". -->
 
   <PropertyGroup>
@@ -9,8 +9,8 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <AssemblyName>RemoteScanner.ConstantCheck</AssemblyName>
-    <RootNamespace>RemoteScanner.ConstantCheck</RootNamespace>
+    <AssemblyName>ScanBridge.ConstantCheck</AssemblyName>
+    <RootNamespace>ScanBridge.ConstantCheck</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>

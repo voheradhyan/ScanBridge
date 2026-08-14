@@ -1,15 +1,15 @@
 @echo off
 setlocal enabledelayedexpansion
 REM ============================================================================
-REM  Remote Scanner - full self-test, WITHOUT a server and WITHOUT RDP.
+REM  ScanBridge - full self-test, WITHOUT a server and WITHOUT RDP.
 REM
 REM  RUN THIS ON THE PC THAT HAS THE SCANNER PLUGGED INTO IT.
 REM  (Copy this whole folder over to that PC first.)
 REM
-REM  It runs every part of Remote Scanner except the RDP hop:
+REM  It runs every part of ScanBridge except the RDP hop:
 REM
-REM      scanning program -> RemoteScanner.ds -> session agent
-REM                       -> Remote Scanner tray app -> scanner
+REM      scanning program -> ScanBridge.ds -> session agent
+REM                       -> ScanBridge tray app -> scanner
 REM
 REM  and finishes by scanning one page for real and saving it as a picture.
 REM
@@ -19,11 +19,11 @@ REM  the problem is the RDP connection. If it fails, ignore RDP entirely - the
 REM  problem is here, and the logs will say where.
 REM ============================================================================
 
-title Remote Scanner - Self Test
+title ScanBridge - Self Test
 color 0B
 
 set "HERE=%~dp0"
-set "OUTPUT=%TEMP%\RemoteScanner-selftest.bmp"
+set "OUTPUT=%TEMP%\ScanBridge-selftest.bmp"
 
 echo.
 echo   ============================================
@@ -31,7 +31,7 @@ echo     REMOTE SCANNER - SELF TEST
 echo   ============================================
 echo.
 echo   This scans one page from the scanner attached to THIS PC,
-echo   through the Remote Scanner driver, with no server involved.
+echo   through the ScanBridge driver, with no server involved.
 echo.
 echo   Put a page in the scanner if you want to see something on it.
 echo   An empty scanner is fine too - a blank page still proves it works.
@@ -60,18 +60,18 @@ if errorlevel 1 (
 
 REM -------------------------------------------------- 2. is the tray app running
 echo.
-echo   [2/5] Checking the Remote Scanner tray app...
+echo   [2/5] Checking the ScanBridge tray app...
 
 REM /fo csv is deliberate. The default table output truncates the Image Name column at 25
 REM characters, so a name longer than that never matches and the check reports "not running"
 REM about a process that is running perfectly well. CSV prints the whole name, quoted.
-tasklist /fi "imagename eq RemoteScanner.Client.exe" /fo csv /nh 2>nul | find /i "RemoteScanner.Client" >nul
+tasklist /fi "imagename eq ScanBridge.Client.exe" /fo csv /nh 2>nul | find /i "ScanBridge.Client" >nul
 if errorlevel 1 (
     echo.
-    echo   The Remote Scanner tray app is NOT running on this PC.
+    echo   The ScanBridge tray app is NOT running on this PC.
     echo.
     echo   It is the part that owns the scanner, so nothing can work without it.
-    echo   Start it from the Start Menu ^(search for "Remote Scanner"^), wait for
+    echo   Start it from the Start Menu ^(search for "ScanBridge"^), wait for
     echo   the tray icon to appear, then run this test again.
     echo.
     pause
@@ -112,13 +112,13 @@ echo   [4/5] Starting the session agent in loopback mode...
 REM Any agent left over from a previous run would hold the pipe this one needs.
 REM
 REM Matched on the command line, not the image name: the session agent is now a role of
-REM RemoteScanner.Service.exe, and killing every process with that name would stop an installed
+REM ScanBridge.Server.exe, and killing every process with that name would stop an installed
 REM service too — on a machine that is both a client and a server, that is somebody else's
 REM scanning session.
 call :STOP_AGENTS
 
-start "RemoteScanner session agent (loopback)" /min ^
-    "%HERE%RemoteScanner.Service.exe" --session-agent --loopback
+start "ScanBridge session agent (loopback)" /min ^
+    "%HERE%ScanBridge.Server.exe" --session-agent --loopback
 
 REM Give it time to start and connect to the tray app before the driver looks for it.
 REM Polled rather than a fixed wait: a cold start on a loaded machine can take several
@@ -134,7 +134,7 @@ for /l %%N in (1,1,15) do (
 if not defined AGENT_UP (
     echo.
     echo   The session agent did not start. See the log:
-    echo     %LocalAppData%\RemoteScanner\logs\sessionagent-*.log
+    echo     %LocalAppData%\ScanBridge\logs\sessionagent-*.log
     echo.
     pause
     exit /b 1
@@ -156,13 +156,13 @@ REM three worked - which produced a scan that ran the scanner, sent the page, an
 REM at the last step with an error dialog on top of an image the user never received. A test
 REM that exercises only one mechanism cannot see that.
 echo   - memory-file transfer ^(the one NAPS2 asks for^)
-"%HERE%x64\dsmprobe.exe" "%DSM%" "%HERE%x64\RemoteScanner.ds" --scan "%OUTPUT%" --memfile --timeout 150
+"%HERE%x64\dsmprobe.exe" "%DSM%" "%HERE%x64\ScanBridge.ds" --scan "%OUTPUT%" --memfile --timeout 150
 set "RESULT=%errorlevel%"
 
 if "%RESULT%"=="0" (
     echo.
     echo   - file transfer
-    "%HERE%x64\dsmprobe.exe" "%DSM%" "%HERE%x64\RemoteScanner.ds" --scan "%OUTPUT%" --timeout 150
+    "%HERE%x64\dsmprobe.exe" "%DSM%" "%HERE%x64\ScanBridge.ds" --scan "%OUTPUT%" --timeout 150
     set "RESULT=!errorlevel!"
 )
 
@@ -174,7 +174,7 @@ if "%RESULT%"=="0" (
     echo     PASSED
     echo   ============================================
     echo.
-    echo   A page was scanned through the Remote Scanner driver and saved to:
+    echo   A page was scanned through the ScanBridge driver and saved to:
     echo     %OUTPUT%
     echo.
     echo   Opening it now - if you see your page, everything except the RDP
@@ -187,7 +187,7 @@ if "%RESULT%"=="0" (
     echo.
     echo   The scan did not complete. The messages above say how far it got.
     echo   The logs have the detail:
-    echo     %LocalAppData%\RemoteScanner\logs\
+    echo     %LocalAppData%\ScanBridge\logs\
     echo.
     echo   Most useful, in this order:
     echo     twainds-*.log       what the driver did
@@ -208,10 +208,10 @@ REM ---------------------------------------------------------------------------
 
 :STOP_AGENTS
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-    "Get-CimInstance Win32_Process -Filter \"Name='RemoteScanner.Service.exe'\" | Where-Object { $_.CommandLine -like '*--session-agent*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }" >nul 2>&1
+    "Get-CimInstance Win32_Process -Filter \"Name='ScanBridge.Server.exe'\" | Where-Object { $_.CommandLine -like '*--session-agent*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }" >nul 2>&1
 exit /b 0
 
 :AGENT_RUNNING
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-    "$p = Get-CimInstance Win32_Process -Filter \"Name='RemoteScanner.Service.exe'\" | Where-Object { $_.CommandLine -like '*--session-agent*' }; if ($p) { exit 0 } else { exit 1 }" >nul 2>&1
+    "$p = Get-CimInstance Win32_Process -Filter \"Name='ScanBridge.Server.exe'\" | Where-Object { $_.CommandLine -like '*--session-agent*' }; if ($p) { exit 0 } else { exit 1 }" >nul 2>&1
 exit /b %errorlevel%

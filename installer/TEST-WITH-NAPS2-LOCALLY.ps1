@@ -28,7 +28,7 @@ Set-StrictMode -Version Latest
 
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 if (-not $Source) {
-    $Source = if (Test-Path (Join-Path $scriptRoot 'x64\RemoteScanner.ds')) { $scriptRoot }
+    $Source = if (Test-Path (Join-Path $scriptRoot 'x64\ScanBridge.ds')) { $scriptRoot }
               else { Join-Path (Split-Path -Parent $scriptRoot) 'build\server' }
 }
 
@@ -38,15 +38,15 @@ if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administra
 }
 
 $targets = @(
-    @{ Dir = Join-Path $env:SystemRoot 'twain_64\RemoteScanner'; File = Join-Path $Source 'x64\RemoteScanner.ds' },
-    @{ Dir = Join-Path $env:SystemRoot 'twain_32\RemoteScanner'; File = Join-Path $Source 'x86\RemoteScanner.ds' }
+    @{ Dir = Join-Path $env:SystemRoot 'twain_64\ScanBridge'; File = Join-Path $Source 'x64\ScanBridge.ds' },
+    @{ Dir = Join-Path $env:SystemRoot 'twain_32\ScanBridge'; File = Join-Path $Source 'x86\ScanBridge.ds' }
 )
 
 # The session agent shares an executable with the server service, so both of these match on the
 # command line. Matching on the image name would stop a running service — on a machine that is
 # both a client and a server, that is somebody's live scanning session.
 function Get-SessionAgents {
-    Get-CimInstance Win32_Process -Filter "Name='RemoteScanner.Service.exe'" -ErrorAction SilentlyContinue |
+    Get-CimInstance Win32_Process -Filter "Name='ScanBridge.Server.exe'" -ErrorAction SilentlyContinue |
         Where-Object { $_.CommandLine -like '*--session-agent*' }
 }
 
@@ -69,25 +69,25 @@ if ($Remove) {
 }
 
 # The tray app owns the scanner; without it the loopback agent has nothing to talk to.
-if (-not (Get-Process -Name 'RemoteScanner.Client' -ErrorAction SilentlyContinue)) {
-    throw "The Remote Scanner tray app is not running. Start it, then run this again."
+if (-not (Get-Process -Name 'ScanBridge.Client' -ErrorAction SilentlyContinue)) {
+    throw "The ScanBridge tray app is not running. Start it, then run this again."
 }
 
 Write-Host "==> Installing the data source locally"
 foreach ($t in $targets) {
     if (-not (Test-Path $t.File)) { Write-Host "    $($t.File) missing, skipped" -ForegroundColor Yellow; continue }
     New-Item -ItemType Directory -Force -Path $t.Dir | Out-Null
-    Copy-Item $t.File (Join-Path $t.Dir 'RemoteScanner.ds') -Force
-    Write-Host "    $($t.Dir)\RemoteScanner.ds"
+    Copy-Item $t.File (Join-Path $t.Dir 'ScanBridge.ds') -Force
+    Write-Host "    $($t.Dir)\ScanBridge.ds"
 }
 
 Write-Host "==> Starting the session agent in loopback mode"
 Stop-SessionAgents
-Start-Process -FilePath (Join-Path $Source 'RemoteScanner.Service.exe') `
+Start-Process -FilePath (Join-Path $Source 'ScanBridge.Server.exe') `
               -ArgumentList '--session-agent', '--loopback' -WindowStyle Minimized
 Start-Sleep -Seconds 3
 if (-not (Get-SessionAgents)) {
-    throw "The session agent did not start. See %ProgramData%\RemoteScanner\logs\sessionagent-*.log"
+    throw "The session agent did not start. See %ProgramData%\ScanBridge\logs\sessionagent-*.log"
 }
 Write-Host "    running"
 
@@ -96,12 +96,12 @@ Write-Host @"
 Ready. Now, in NAPS2 on this PC:
 
   1. Profiles -> Add, driver TWAIN, choose device
-  2. pick "Remote Scanner (this PC's name)"
+  2. pick "ScanBridge (this PC's name)"
   3. Scan
 
 Then read the newest log, which now records what NAPS2 asked for:
 
-  Get-ChildItem `$env:ProgramData\RemoteScanner\logs\twainds-*.log |
+  Get-ChildItem `$env:ProgramData\ScanBridge\logs\twainds-*.log |
     Sort-Object LastWriteTime | Select-Object -Last 1 | Get-Content
 
 Undo with:  .\TEST-WITH-NAPS2-LOCALLY.ps1 -Remove

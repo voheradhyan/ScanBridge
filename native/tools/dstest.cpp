@@ -1,4 +1,4 @@
-// Loads RemoteScanner.ds exactly the way a TWAIN Data Source Manager does, and reports
+// Loads ScanBridge.ds exactly the way a TWAIN Data Source Manager does, and reports
 // where it stops.
 //
 // Written because a real DSM gives no feedback at all: it loads a data source, decides it
@@ -59,9 +59,9 @@ void describeLoadFailure(DWORD error) {
 }  // namespace
 
 int main(int argc, char** argv) {
-    const char* path = argc > 1 ? argv[1] : "RemoteScanner.ds";
+    const char* path = argc > 1 ? argv[1] : "ScanBridge.ds";
 
-    std::printf("\n=== RemoteScanner data source test (%d-bit process) ===\n\n",
+    std::printf("\n=== ScanBridge data source test (%d-bit process) ===\n\n",
                 static_cast<int>(sizeof(void*) * 8));
     std::printf("  target: %s\n\n", path);
 
@@ -123,7 +123,7 @@ int main(int argc, char** argv) {
         application.Version.Language = TWLG_ENGLISH_USA;
         application.Version.Country = TWCY_USA;
         lstrcpynA(application.Version.Info, "1.0", sizeof(application.Version.Info));
-        lstrcpynA(application.Manufacturer, "RemoteScanner", sizeof(application.Manufacturer));
+        lstrcpynA(application.Manufacturer, "ScanBridge", sizeof(application.Manufacturer));
         lstrcpynA(application.ProductFamily, "Test", sizeof(application.ProductFamily));
         lstrcpynA(application.ProductName, "dstest", sizeof(application.ProductName));
 

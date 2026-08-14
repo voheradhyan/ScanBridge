@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- A library, not a program of its own.
+
+         The session agent still runs as its own process. It has to: in the user's session and
+         under the user's token. But that process is now the server executable started with the
+         session-agent switch. One file to install instead of two, and one file whose halves
+         can never be different builds. -->
+    <OutputType>Library</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AssemblyName>ScanBridge.SessionAgent</AssemblyName>
+    <RootNamespace>ScanBridge.SessionAgent</RootNamespace>
+    <PlatformTarget>x64</PlatformTarget>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ScanBridge.Common\ScanBridge.Common.csproj" />
+    <ProjectReference Include="..\ScanBridge.Protocol\ScanBridge.Protocol.csproj" />
+    <ProjectReference Include="..\ScanBridge.Rdp\ScanBridge.Rdp.csproj" />
+  </ItemGroup>
+
+</Project>

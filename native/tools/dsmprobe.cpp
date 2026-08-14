@@ -22,7 +22,7 @@
 // simulated here in any part.
 //
 // Usage
-//   dsmprobe.exe <twaindsm.dll> <RemoteScanner.ds> [--toplevel] [--open]
+//   dsmprobe.exe <twaindsm.dll> <ScanBridge.ds> [--toplevel] [--open]
 //                                                  [--scan [out.bmp]] [--timeout <seconds>]
 //
 //     --toplevel  also place a copy directly in twain_NN\, as the legacy layout wants, to
@@ -35,7 +35,7 @@
 //                 --open. Needs a session agent and a tray agent to be running, and a scanner
 //                 switched on at the far end.
 //
-// Exit code 0 only if the manager listed a source manufactured by RemoteScanner.
+// Exit code 0 only if the manager listed a source manufactured by ScanBridge.
 
 #include <windows.h>
 #include <cstdio>
@@ -166,11 +166,11 @@ void removeScratchTree(const char* root) {
     char file[MAX_PATH]{};
 
     wsprintfA(twain, "%s\\twain_%d", root, kBits);
-    wsprintfA(vendor, "%s\\RemoteScanner", twain);
+    wsprintfA(vendor, "%s\\ScanBridge", twain);
 
-    wsprintfA(file, "%s\\RemoteScanner.ds", vendor);
+    wsprintfA(file, "%s\\ScanBridge.ds", vendor);
     DeleteFileA(file);
-    wsprintfA(file, "%s\\RemoteScanner.ds", twain);
+    wsprintfA(file, "%s\\ScanBridge.ds", twain);
     DeleteFileA(file);
 
     RemoveDirectoryA(vendor);
@@ -178,12 +178,12 @@ void removeScratchTree(const char* root) {
     RemoveDirectoryA(root);
 }
 
-/// Builds <root>\twain_NN\RemoteScanner\RemoteScanner.ds, the layout a 2.x manager expects.
+/// Builds <root>\twain_NN\ScanBridge\ScanBridge.ds, the layout a 2.x manager expects.
 bool buildScratchTree(const char* root, const char* dataSource, bool alsoTopLevel) {
     char twain[MAX_PATH]{};
     char vendor[MAX_PATH]{};
     wsprintfA(twain, "%s\\twain_%d", root, kBits);
-    wsprintfA(vendor, "%s\\RemoteScanner", twain);
+    wsprintfA(vendor, "%s\\ScanBridge", twain);
 
     if (!ensureDirectory(root) || !ensureDirectory(twain) || !ensureDirectory(vendor)) {
         std::printf("   could not create the scratch tree under %s (error %lu)\n",
@@ -192,7 +192,7 @@ bool buildScratchTree(const char* root, const char* dataSource, bool alsoTopLeve
     }
 
     char destination[MAX_PATH]{};
-    wsprintfA(destination, "%s\\RemoteScanner.ds", vendor);
+    wsprintfA(destination, "%s\\ScanBridge.ds", vendor);
     if (!CopyFileA(dataSource, destination, FALSE)) {
         std::printf("   could not copy %s -> %s (error %lu)\n",
                     dataSource, destination, GetLastError());
@@ -202,7 +202,7 @@ bool buildScratchTree(const char* root, const char* dataSource, bool alsoTopLeve
 
     if (alsoTopLevel) {
         char legacy[MAX_PATH]{};
-        wsprintfA(legacy, "%s\\RemoteScanner.ds", twain);
+        wsprintfA(legacy, "%s\\ScanBridge.ds", twain);
         if (CopyFileA(dataSource, legacy, FALSE)) {
             std::printf("   placed %s\n", legacy);
         }
@@ -798,7 +798,7 @@ TW_IDENTITY makeApplicationIdentity() {
     app.Version.Language = TWLG_ENGLISH_USA;
     app.Version.Country = TWCY_USA;
     lstrcpynA(app.Version.Info, "1.0", sizeof(app.Version.Info));
-    lstrcpynA(app.Manufacturer, "RemoteScanner", sizeof(app.Manufacturer));
+    lstrcpynA(app.Manufacturer, "ScanBridge", sizeof(app.Manufacturer));
     lstrcpynA(app.ProductFamily, "Diagnostics", sizeof(app.ProductFamily));
     lstrcpynA(app.ProductName, "dsmprobe", sizeof(app.ProductName));
     return app;
@@ -808,7 +808,7 @@ TW_IDENTITY makeApplicationIdentity() {
 
 int main(int argc, char** argv) {
     if (argc < 3) {
-        std::printf("usage: dsmprobe <twaindsm.dll> <RemoteScanner.ds> [--toplevel] [--open]\n"
+        std::printf("usage: dsmprobe <twaindsm.dll> <ScanBridge.ds> [--toplevel] [--open]\n"
                     "       [--scan <out.bmp>] [--native | --memory | --memfile]\n"
                     "       [--tiff] [--timeout <seconds>]\n"
                     "\n"
@@ -862,7 +862,7 @@ int main(int argc, char** argv) {
     if (alsoScan && !scanOutput) {
         char temp[MAX_PATH]{};
         GetTempPathA(MAX_PATH, temp);
-        wsprintfA(defaultOutput, "%sRemoteScanner-probe.bmp", temp);
+        wsprintfA(defaultOutput, "%sScanBridge-probe.bmp", temp);
         scanOutput = defaultOutput;
     }
 
@@ -943,7 +943,7 @@ int main(int argc, char** argv) {
                     source.ProtocolMajor, source.ProtocolMinor,
                     static_cast<unsigned long>(source.SupportedGroups));
 
-        if (lstrcmpiA(source.Manufacturer, "RemoteScanner") == 0) {
+        if (lstrcmpiA(source.Manufacturer, "ScanBridge") == 0) {
             ++remoteScannerCount;
             ours = source;
         }
@@ -986,7 +986,7 @@ int main(int argc, char** argv) {
     FreeLibrary(manager);
     removeScratchTree(g_fakeWindowsDirectory);
 
-    std::printf("\n   >>> %d source(s) listed; Remote Scanner appeared %d time(s) <<<\n",
+    std::printf("\n   >>> %d source(s) listed; ScanBridge appeared %d time(s) <<<\n",
                 count, remoteScannerCount);
 
     if (remoteScannerCount == 1) {

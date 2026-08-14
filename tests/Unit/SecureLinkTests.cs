@@ -1,8 +1,8 @@
 using System.Security.Cryptography;
-using RemoteScanner.Protocol;
+using ScanBridge.Protocol;
 using Xunit;
 
-namespace RemoteScanner.Tests.Unit;
+namespace ScanBridge.Tests.Unit;
 
 /// <summary>
 /// The encrypted stream that carries scans when the RDP virtual channel is not usable.

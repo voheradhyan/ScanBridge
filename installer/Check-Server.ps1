@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Checks that the RemoteScanner server component is installed and able to work.
+    Checks that the ScanBridge server component is installed and able to work.
 
 .DESCRIPTION
     Run this on the Windows Server after Install-Server.ps1. It reports on each thing that
@@ -104,18 +104,18 @@ if (Get-Command Get-WindowsFeature -ErrorAction SilentlyContinue) {
 
 # ---------------------------------------------------------------- our service
 
-Write-Head "Remote Scanner service"
+Write-Head "ScanBridge service"
 
-$svc = Get-Service RemoteScanner -ErrorAction SilentlyContinue
+$svc = Get-Service ScanBridge -ErrorAction SilentlyContinue
 if (-not $svc) {
     Write-Bad "Service" "not installed" "Run INSTALL-ON-SERVER.bat as administrator."
 } elseif ($svc.Status -ne 'Running') {
     Write-Bad "Service" "installed but $($svc.Status)" `
-        "Start it:  Start-Service RemoteScanner   then check the logs below."
+        "Start it:  Start-Service ScanBridge   then check the logs below."
 } else {
     Write-Ok "Service" "running"
 
-    $wmi = Get-CimInstance Win32_Service -Filter "Name='RemoteScanner'"
+    $wmi = Get-CimInstance Win32_Service -Filter "Name='ScanBridge'"
     if ($wmi.StartName -match 'LocalSystem') {
         Write-Ok "Service account" "LocalSystem"
     } else {
@@ -133,8 +133,8 @@ if (-not $svc) {
 
 Write-Head "Virtual scanner driver"
 
-$ds64 = Join-Path $env:SystemRoot 'twain_64\RemoteScanner\RemoteScanner.ds'
-$ds32 = Join-Path $env:SystemRoot 'twain_32\RemoteScanner\RemoteScanner.ds'
+$ds64 = Join-Path $env:SystemRoot 'twain_64\ScanBridge\ScanBridge.ds'
+$ds32 = Join-Path $env:SystemRoot 'twain_32\ScanBridge\ScanBridge.ds'
 
 if (Test-Path $ds64) {
     Write-Ok "64-bit driver" "$ds64"
@@ -201,7 +201,7 @@ if ($sessions) {
     Write-Host "           (could not read session list)" -ForegroundColor DarkGray
 }
 
-$agents = Get-Process RemoteScanner.SessionAgent -ErrorAction SilentlyContinue
+$agents = Get-Process ScanBridge.SessionAgent -ErrorAction SilentlyContinue
 if ($agents) {
     Write-Ok "Session agents running" "$($agents.Count)"
 } else {
@@ -213,7 +213,7 @@ if ($agents) {
 
 Write-Head "Recent log activity"
 
-$logDir = Join-Path $env:ProgramData 'RemoteScanner\logs'
+$logDir = Join-Path $env:ProgramData 'ScanBridge\logs'
 if (-not (Test-Path $logDir)) {
     Write-Note "Log folder" "not created yet" "It appears the first time the service starts."
 } else {
@@ -242,7 +242,7 @@ if (-not (Test-Path $logDir)) {
 
 Write-Head "Last failure reported by the driver"
 
-$twainLogs = Get-ChildItem (Join-Path $env:ProgramData 'RemoteScanner\logs\twainds-*.log') `
+$twainLogs = Get-ChildItem (Join-Path $env:ProgramData 'ScanBridge\logs\twainds-*.log') `
                 -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending |
              Select-Object -First 5
 
@@ -273,19 +273,19 @@ if (-not $twainLogs) {
                 "Sign out of the session completely and sign back in - the agent is started when the session is created."
             break
         }
-        'cannot reach the RemoteScanner agent' {
+        'cannot reach the ScanBridge agent' {
             Write-Bad "The driver could not reach the session agent" "" `
                 "Sign out and back in. If it persists, read sessionagent-*.log above for why it stopped."
             break
         }
         'no scanner is available on the local PC' {
             Write-Bad "Your PC answered, but offered no scanner" "" `
-                "On your own PC: open Remote Scanner, confirm a scanner is listed and that Test Scan works. The tray app must be running."
+                "On your own PC: open ScanBridge, confirm a scanner is listed and that Test Scan works. The tray app must be running."
             break
         }
         'no longer available' {
             Write-Bad "The scanner disappeared mid-session" "" `
-                "Switch the scanner on, then click Refresh in Remote Scanner on your PC."
+                "Switch the scanner on, then click Refresh in ScanBridge on your PC."
             break
         }
         'handshake|authentication|secret mismatch' {

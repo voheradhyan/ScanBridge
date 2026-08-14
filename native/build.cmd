@@ -60,22 +60,22 @@ if /i "%TARGET%"=="x64" set "LFLAGS=%LFLAGS% /HIGHENTROPYVA"
 
 pushd "%OUT%\%TARGET%"
 
-echo --- RemoteScanner.ds
-cl %CFLAGS% "%ROOT%RemoteScanner.TwainDS\ds.cpp" /Fo:ds.obj
+echo --- ScanBridge.ds
+cl %CFLAGS% "%ROOT%ScanBridge.TwainDS\ds.cpp" /Fo:ds.obj
 if errorlevel 1 goto :failed
 
-link %LFLAGS% /DEF:"%ROOT%RemoteScanner.TwainDS\RemoteScanner.def" ^
-     /OUT:RemoteScanner.ds ds.obj ^
+link %LFLAGS% /DEF:"%ROOT%ScanBridge.TwainDS\ScanBridge.def" ^
+     /OUT:ScanBridge.ds ds.obj ^
      kernel32.lib user32.lib advapi32.lib shell32.lib ole32.lib windowscodecs.lib bcrypt.lib crypt32.lib
 if errorlevel 1 goto :failed
 
-echo --- RemoteScanner.DvcPlugin.dll
-if exist "%ROOT%RemoteScanner.DvcPlugin\plugin.cpp" (
-    cl %CFLAGS% "%ROOT%RemoteScanner.DvcPlugin\plugin.cpp" /Fo:plugin.obj
+echo --- ScanBridge.DvcPlugin.dll
+if exist "%ROOT%ScanBridge.DvcPlugin\plugin.cpp" (
+    cl %CFLAGS% "%ROOT%ScanBridge.DvcPlugin\plugin.cpp" /Fo:plugin.obj
     if errorlevel 1 goto :failed
 
-    link %LFLAGS% /DEF:"%ROOT%RemoteScanner.DvcPlugin\Plugin.def" ^
-         /OUT:RemoteScanner.DvcPlugin.dll plugin.obj ^
+    link %LFLAGS% /DEF:"%ROOT%ScanBridge.DvcPlugin\Plugin.def" ^
+         /OUT:ScanBridge.DvcPlugin.dll plugin.obj ^
          kernel32.lib user32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib bcrypt.lib crypt32.lib
     if errorlevel 1 goto :failed
 )

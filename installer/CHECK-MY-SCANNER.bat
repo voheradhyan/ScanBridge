@@ -1,6 +1,6 @@
 @echo off
 REM ============================================================================
-REM  Remote Scanner - check that this PC can see its scanner.
+REM  ScanBridge - check that this PC can see its scanner.
 REM
 REM  Run this FIRST whenever the scanner does not show up in the remote session.
 REM  It tests only this PC and its scanner - Remote Desktop is not involved at
@@ -11,7 +11,7 @@ REM                               Remote Desktop connection
 REM      nothing listed here   -> the problem is the scanner or its driver
 REM ============================================================================
 
-title Remote Scanner - Check My Scanner
+title ScanBridge - Check My Scanner
 color 0B
 
 echo.
@@ -22,7 +22,7 @@ echo.
 echo   Please wait, this takes about 10 seconds...
 echo.
 
-"%~dp0RemoteScanner.Client.exe" --enumerate-once
+"%~dp0ScanBridge.Client.exe" --enumerate-once
 
 echo.
 echo   ============================================
@@ -35,6 +35,6 @@ echo     2. Does it work in its own software, or in Windows Fax and Scan?
 echo     3. Try unplugging and replugging the USB cable.
 echo.
 echo   Detailed logs are in:
-echo     %%LocalAppData%%\RemoteScanner\logs
+echo     %%LocalAppData%%\ScanBridge\logs
 echo.
 pause

@@ -1,8 +1,8 @@
 @echo off
 REM ============================================================================
-REM  Remote Scanner - check what scanning programs can actually see.
+REM  ScanBridge - check what scanning programs can actually see.
 REM
-REM  Run on the SERVER when "Remote Scanner" does not appear in a scanning
+REM  Run on the SERVER when "ScanBridge" does not appear in a scanning
 REM  program's device list.
 REM
 REM  Part 2 is the one that decides it. A real TWAIN manager is loaded, pointed
@@ -12,11 +12,11 @@ REM  supporting detail.
 REM ============================================================================
 
 setlocal enabledelayedexpansion
-title Remote Scanner - Check TWAIN
+title ScanBridge - Check TWAIN
 color 0B
 
-set "DS32=%SystemRoot%\twain_32\RemoteScanner\RemoteScanner.ds"
-set "DS64=%SystemRoot%\twain_64\RemoteScanner\RemoteScanner.ds"
+set "DS32=%SystemRoot%\twain_32\ScanBridge\ScanBridge.ds"
+set "DS64=%SystemRoot%\twain_64\ScanBridge\ScanBridge.ds"
 
 echo.
 echo   ============================================
@@ -32,14 +32,14 @@ if exist "%DS64%" (for %%F in ("%DS64%") do echo     64-bit : %%~tF  %%~zF bytes
 
 REM An earlier installer also put a copy one level up. A TWAIN 2.x manager reads
 REM both levels, so a leftover copy shows the scanner twice in every program.
-if exist "%SystemRoot%\twain_32\RemoteScanner.ds" (
+if exist "%SystemRoot%\twain_32\ScanBridge.ds" (
     echo.
-    echo     ! %SystemRoot%\twain_32\RemoteScanner.ds is a leftover duplicate.
+    echo     ! %SystemRoot%\twain_32\ScanBridge.ds is a leftover duplicate.
     echo       Re-run INSTALL-ON-SERVER.bat to remove it.
 )
-if exist "%SystemRoot%\twain_64\RemoteScanner.ds" (
+if exist "%SystemRoot%\twain_64\ScanBridge.ds" (
     echo.
-    echo     ! %SystemRoot%\twain_64\RemoteScanner.ds is a leftover duplicate.
+    echo     ! %SystemRoot%\twain_64\ScanBridge.ds is a leftover duplicate.
     echo       Re-run INSTALL-ON-SERVER.bat to remove it.
 )
 
@@ -59,13 +59,13 @@ if not defined DSM if exist "%ProgramFiles(x86)%\NAPS2\lib\_win64\twaindsm.dll" 
 if not defined DSM if exist "%LOCALAPPDATA%\Programs\NAPS2\lib\_win64\twaindsm.dll" set "DSM=%LOCALAPPDATA%\Programs\NAPS2\lib\_win64\twaindsm.dll"
 
 if defined DSM (
-    "%~dp0x64\dsmprobe.exe" "%DSM%" "%~dp0x64\RemoteScanner.ds"
+    "%~dp0x64\dsmprobe.exe" "%DSM%" "%~dp0x64\ScanBridge.ds"
 ) else (
     echo   No TWAIN manager found on this machine to test against.
     echo.
     echo   Install NAPS2 ^(free, https://www.naps2.com^) and run this again, or
     echo   point the tool at one you already have:
-    echo     x64\dsmprobe.exe "C:\path\to\twaindsm.dll" x64\RemoteScanner.ds
+    echo     x64\dsmprobe.exe "C:\path\to\twaindsm.dll" x64\ScanBridge.ds
 )
 
 echo.
@@ -118,7 +118,7 @@ echo     devices plugged into this machine, and never reads .ds files at all.
 echo     Real scanning programs carry their own manager, which is the one
 echo     Part 2 tests.
 echo.
-echo   Windows Fax and Scan will never list Remote Scanner. It is WIA-only.
+echo   Windows Fax and Scan will never list ScanBridge. It is WIA-only.
 echo   Use a TWAIN program.
 echo.
 pause

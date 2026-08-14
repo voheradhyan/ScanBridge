@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Bundles every RemoteScanner log on this machine into one zip on the Desktop.
+    Bundles every ScanBridge log on this machine into one zip on the Desktop.
 
 .DESCRIPTION
     Each file is copied through a sharing-tolerant read before being zipped, and the running
@@ -30,8 +30,8 @@ Set-StrictMode -Version Latest
 # profile, so that one user on a Session Host cannot read another's. Only the machine-wide
 # service logs to ProgramData. Collecting one without the other leaves half the story.
 $sources = @(
-    Join-Path $env:LOCALAPPDATA 'RemoteScanner\logs',
-    Join-Path $env:ProgramData 'RemoteScanner\logs'
+    Join-Path $env:LOCALAPPDATA 'ScanBridge\logs',
+    Join-Path $env:ProgramData 'ScanBridge\logs'
 ) | Where-Object { Test-Path $_ }
 
 if ($sources.Count -eq 0) {
@@ -65,7 +65,7 @@ foreach ($file in ($sources | ForEach-Object { Get-ChildItem $_ -File })) {
 # Which processes were alive, and where they were running from. "Two agents were running" and
 # "it was an old copy from another folder" are both invisible in the logs themselves.
 $processes = Get-Process |
-    Where-Object { $_.ProcessName -like 'RemoteScanner*' -or $_.ProcessName -eq 'mstsc' } |
+    Where-Object { $_.ProcessName -like 'ScanBridge*' -or $_.ProcessName -eq 'mstsc' } |
     Select-Object Id, ProcessName, SessionId, StartTime, Path |
     Format-Table -AutoSize | Out-String
 
@@ -83,7 +83,7 @@ $info = @(
 )
 $info | Set-Content (Join-Path $stage '_collection-info.txt') -Encoding utf8
 
-$zip = Join-Path $Destination "RemoteScanner-logs-$env:COMPUTERNAME-$stamp.zip"
+$zip = Join-Path $Destination "ScanBridge-logs-$env:COMPUTERNAME-$stamp.zip"
 Compress-Archive -Path (Join-Path $stage '*') -DestinationPath $zip -Force
 Remove-Item $stage -Recurse -Force
 

@@ -1,7 +1,7 @@
 @echo off
 setlocal
 REM ============================================================================
-REM  Remote Scanner - pair this Remote Desktop session with the PC that has
+REM  ScanBridge - pair this Remote Desktop session with the PC that has
 REM  the scanner.
 REM
 REM  RUN THIS INSIDE YOUR REMOTE DESKTOP SESSION, on the server.
@@ -12,7 +12,7 @@ REM  is required. When that channel will not carry data - which some Remote
 REM  Desktop clients and some group policies prevent - the server connects to
 REM  your PC directly instead, and the two ends need a shared code first.
 REM
-REM  Get the code from the PC with the scanner: open Remote Scanner there and
+REM  Get the code from the PC with the scanner: open ScanBridge there and
 REM  click "Pairing Code". It is copied to the clipboard, so you can paste it
 REM  straight into this window.
 REM
@@ -20,7 +20,7 @@ REM  The code is per person and per server. It is stored for your account only,
 REM  so other people signed in to this server cannot use your scanner.
 REM ============================================================================
 
-title Remote Scanner - Pair With My PC
+title ScanBridge - Pair With My PC
 color 0B
 
 set "HERE=%~dp0"
@@ -30,7 +30,7 @@ echo   ============================================
 echo     REMOTE SCANNER - PAIRING
 echo   ============================================
 echo.
-echo   On the PC with the scanner: open Remote Scanner,
+echo   On the PC with the scanner: open ScanBridge,
 echo   click "Pairing Code", and copy it.
 echo.
 echo   Then paste it here. To paste, right-click in this
@@ -49,7 +49,7 @@ if not defined CODE (
 )
 
 echo.
-"%HERE%RemoteScanner.Service.exe" --pair="%CODE%"
+"%HERE%ScanBridge.Server.exe" --pair="%CODE%"
 set "RESULT=%errorlevel%"
 
 if "%RESULT%"=="0" (

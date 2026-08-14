@@ -2,10 +2,10 @@ using System.Buffers.Binary;
 using System.ComponentModel;
 using System.Runtime.InteropServices;
 using Microsoft.Win32.SafeHandles;
-using RemoteScanner.Rdp;
+using ScanBridge.Rdp;
 using Xunit;
 
-namespace RemoteScanner.Tests.Unit;
+namespace ScanBridge.Tests.Unit;
 
 /// <summary>
 /// The RDP dynamic virtual channel transport.
@@ -46,7 +46,7 @@ public sealed class VirtualChannelStreamTests : IDisposable
 
     public VirtualChannelStreamTests()
     {
-        string name = $@"\\.\pipe\RemoteScanner.Dvc.{Guid.NewGuid():N}";
+        string name = $@"\\.\pipe\ScanBridge.Dvc.{Guid.NewGuid():N}";
 
         // Message mode: one write by the far end is one read here, as on the real device.
         _server = CreateNamedPipeW(name, PIPE_ACCESS_DUPLEX,

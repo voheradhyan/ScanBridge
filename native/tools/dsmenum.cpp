@@ -1,7 +1,7 @@
-﻿// Drives a real TWAIN Data Source Manager and lists every data source it reports.
+// Drives a real TWAIN Data Source Manager and lists every data source it reports.
 //
 // This is the view a scanning application has. Our own log can show that a DSM loaded
-// RemoteScanner.ds, and a direct call can show the data source answers correctly, and yet
+// ScanBridge.ds, and a direct call can show the data source answers correctly, and yet
 // the application still lists nothing - which means the disagreement is inside the manager.
 // This prints what the manager actually returns, which is the only way to see that.
 //
@@ -43,7 +43,7 @@ TW_IDENTITY makeApplicationIdentity() {
     app.Version.Language = TWLG_ENGLISH_USA;
     app.Version.Country = TWCY_USA;
     lstrcpynA(app.Version.Info, "1.0", sizeof(app.Version.Info));
-    lstrcpynA(app.Manufacturer, "RemoteScanner", sizeof(app.Manufacturer));
+    lstrcpynA(app.Manufacturer, "ScanBridge", sizeof(app.Manufacturer));
     lstrcpynA(app.ProductFamily, "Diagnostics", sizeof(app.ProductFamily));
     lstrcpynA(app.ProductName, "dsmenum", sizeof(app.ProductName));
     return app;
@@ -102,7 +102,7 @@ bool tryManager(const char* dsmName) {
     std::printf("\n   data sources reported:\n");
 
     int count = 0;
-    bool sawRemoteScanner = false;
+    bool sawScanBridge = false;
     TW_IDENTITY source{};
 
     rc = entry(&app, nullptr, DG_CONTROL, DAT_IDENTITY, MSG_GETFIRST, &source);
@@ -124,7 +124,7 @@ bool tryManager(const char* dsmName) {
                     source.Manufacturer, source.ProtocolMajor, source.ProtocolMinor,
                     static_cast<unsigned long>(source.SupportedGroups));
 
-        if (lstrcmpiA(source.Manufacturer, "RemoteScanner") == 0) sawRemoteScanner = true;
+        if (lstrcmpiA(source.Manufacturer, "ScanBridge") == 0) sawScanBridge = true;
 
         ZeroMemory(&source, sizeof(source));
         rc = entry(&app, nullptr, DG_CONTROL, DAT_IDENTITY, MSG_GETNEXT, &source);
@@ -132,8 +132,8 @@ bool tryManager(const char* dsmName) {
 
     if (count == 0) std::printf("     (none)\n");
 
-    std::printf("\n   >>> %d data source(s); Remote Scanner %s <<<\n",
-                count, sawRemoteScanner ? "FOUND" : "NOT FOUND");
+    std::printf("\n   >>> %d data source(s); ScanBridge %s <<<\n",
+                count, sawScanBridge ? "FOUND" : "NOT FOUND");
 
     entry(&app, nullptr, DG_CONTROL, DAT_PARENT, MSG_CLOSEDSM, &window);
     if (window) DestroyWindow(window);

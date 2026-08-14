@@ -1,6 +1,6 @@
 @echo off
 REM ============================================================================
-REM  Remote Scanner - turn on detailed logging.
+REM  ScanBridge - turn on detailed logging.
 REM
 REM  Only needed when something is not working and detailed logs are wanted.
 REM  Run COLLECT-LOGS.bat afterwards to gather them up.
@@ -8,7 +8,7 @@ REM
 REM  Safe to leave on, but logs grow faster. Run TURN-OFF-LOGGING.bat when done.
 REM ============================================================================
 
-title Remote Scanner - Turn On Detailed Logging
+title ScanBridge - Turn On Detailed Logging
 color 0B
 
 net session >nul 2>&1
@@ -27,17 +27,17 @@ echo     TURNING ON DETAILED LOGGING
 echo   ============================================
 echo.
 
-reg add HKLM\SOFTWARE\RemoteScanner /v LogLevel /t REG_SZ /d Debug /f >nul
+reg add HKLM\SOFTWARE\ScanBridge /v LogLevel /t REG_SZ /d Debug /f >nul
 echo   Detailed logging is now ON.
 echo.
 
 REM Both the service and the running session agents re-read the level at startup,
 REM so they are restarted to pick it up.
-sc query RemoteScanner >nul 2>&1
+sc query ScanBridge >nul 2>&1
 if %errorlevel% equ 0 (
-    echo   Restarting the Remote Scanner service...
-    net stop RemoteScanner >nul 2>&1
-    net start RemoteScanner >nul 2>&1
+    echo   Restarting the ScanBridge service...
+    net stop ScanBridge >nul 2>&1
+    net start ScanBridge >nul 2>&1
     echo   Done.
 )
 

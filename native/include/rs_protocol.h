@@ -1,4 +1,4 @@
-// rs_protocol.h — C++ mirror of RemoteScanner.Protocol (Wire.cs / Codec.cs / Messages.cs).
+// rs_protocol.h — C++ mirror of ScanBridge.Protocol (Wire.cs / Codec.cs / Messages.cs).
 //
 // Header-only so both the data source and the DVC plugin can consume it without a shared
 // library. Layouts here MUST match the C# side byte for byte; the round-trip test in
@@ -24,9 +24,9 @@ constexpr size_t   kHeaderSize = 12;
 constexpr uint32_t kMaxPayload = 32 * 1024;
 constexpr uint32_t kMaxFrameSize = static_cast<uint32_t>(kHeaderSize) + kMaxPayload;
 constexpr int      kDefaultCreditWindow = 64;
-constexpr wchar_t  kDvcChannelNameW[] = L"RemoteScanner";
-constexpr char     kDvcChannelNameA[] = "RemoteScanner";
-constexpr wchar_t  kAgentPipeName[] = L"RemoteScanner.Agent";
+constexpr wchar_t  kDvcChannelNameW[] = L"ScanBridge";
+constexpr char     kDvcChannelNameA[] = "ScanBridge";
+constexpr wchar_t  kAgentPipeName[] = L"ScanBridge.Agent";
 constexpr uint32_t kHeartbeatIntervalMs = 15000;
 constexpr uint32_t kHeartbeatTimeoutMs = 45000;
 constexpr size_t   kNonceLength = 32;
