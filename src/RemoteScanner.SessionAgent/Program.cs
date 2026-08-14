@@ -87,7 +87,7 @@ public static class Program
 
             StopOrphanedAgents(sessionId);
 
-            AppPaths.EnsureDirectories(sessionId);
+            AppPaths.EnsureDirectories();
 
             // Publish the client machine name so the data source can title itself
             // "Remote Scanner (DESKTOP-XXXX)" before it has connected to anything.
@@ -108,8 +108,8 @@ public static class Program
                 shutdown.Cancel();
             };
 
-            // The service signals a clean stop by closing this event rather than killing us,
-            // so spooled pages get purged and the channel is closed politely.
+            // The service signals a clean stop by closing this event rather than killing us, so the
+            // channel is closed politely and the session key is cleared.
             AppDomain.CurrentDomain.ProcessExit += (_, _) => shutdown.Cancel();
 
             RelayTransport transport =
@@ -123,7 +123,6 @@ public static class Program
                 sessionId, secret, SecurePipe.CurrentUserSid(), clientAddress, transport);
             await relay.RunAsync(shutdown.Token).ConfigureAwait(false);
 
-            AppPaths.PurgeSpool(sessionId);
             SecretStore.ClearSession(sessionId);
 
             log.Information("Session agent for session {Session} stopped.", sessionId);

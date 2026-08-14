@@ -110,14 +110,34 @@ std::wstring readRegistryString(const std::wstring& subKey, const std::wstring& 
     return result;
 }
 
+/// Shortens a UTF-8 string to at most `maxBytes`, never splitting a character.
+///
+/// TW_STR32 is measured in bytes, and a machine name is not. Cutting mid-sequence leaves a
+/// partial code point that applications render as a replacement glyph or reject outright, so a
+/// PC named in Greek, Cyrillic, Hebrew or any CJK script could end up unnamed or unselectable
+/// in the scanner list. Continuation bytes are 10xxxxxx, so backing up off them lands on a
+/// character boundary.
+std::string truncateUtf8(const std::string& text, size_t maxBytes) {
+    if (text.size() <= maxBytes) return text;
+
+    size_t cut = maxBytes;
+    while (cut > 0 && (static_cast<unsigned char>(text[cut]) & 0xC0) == 0x80) --cut;
+    return text.substr(0, cut);
+}
+
 /// The name shown in the application's scanner list. The session agent writes the client's
 /// machine name here when it connects, so the user sees which PC the scanner is on.
 std::string productName() {
     std::wstring client = readRegistryString(sessionRegistryKey(), L"ClientName", L"");
     if (client.empty()) return "Remote Scanner";
-    std::string name = "Remote Scanner (" + wideToUtf8(client) + ")";
-    if (name.size() > sizeof(TW_STR32) - 2) name = name.substr(0, sizeof(TW_STR32) - 2);
-    return name;
+
+    // The closing bracket is reserved before the name is trimmed, so a long or non-Latin
+    // machine name yields "Remote Scanner (LONGNAME…)" rather than a sentence that stops dead.
+    constexpr size_t kLimit = sizeof(TW_STR32) - 2;
+    const std::string prefix = "Remote Scanner (";
+    const size_t budget = kLimit > prefix.size() + 1 ? kLimit - prefix.size() - 1 : 0;
+
+    return prefix + truncateUtf8(wideToUtf8(client), budget) + ")";
 }
 
 /// Emits a baseline uncompressed TIFF for DAT_IMAGEFILEXFER.

@@ -15,38 +15,25 @@ public static class AppPaths
 
     public static string LogDirectory { get; } = Path.Combine(Root, "logs");
 
-    /// <summary>
-    /// Where in-flight page data is spooled. Per-session so one user's scan is never visible
-    /// in another's directory listing.
-    /// </summary>
-    public static string SpoolDirectory(uint sessionId) => Path.Combine(Root, "spool", sessionId.ToString());
-
     public static string ConfigFile { get; } = Path.Combine(Root, "config.json");
 
+    /// <summary>
+    /// Where the 64-bit payload is installed.
+    ///
+    /// Resolved through ProgramW6432 first, because SpecialFolder.ProgramFiles answers
+    /// according to the *calling process's* bitness: a 32-bit component asking the same
+    /// question is told "Program Files (x86)" and looks for the install in a folder that does
+    /// not contain it. Both bitnesses of this product must agree on one answer, and the 64-bit
+    /// one is where the installer puts things.
+    /// </summary>
     public static string InstallDirectory { get; } = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "RemoteScanner");
+        Environment.GetEnvironmentVariable("ProgramW6432")
+            ?? Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+        "RemoteScanner");
 
-    public static void EnsureDirectories(uint? sessionId = null)
+    public static void EnsureDirectories()
     {
         Directory.CreateDirectory(Root);
         Directory.CreateDirectory(LogDirectory);
-        if (sessionId is { } id) Directory.CreateDirectory(SpoolDirectory(id));
-    }
-
-    /// <summary>
-    /// Deletes spooled pages for a session. Scanned documents are business records; they do
-    /// not outlive the job that produced them unless the user explicitly asked to keep one.
-    /// </summary>
-    public static void PurgeSpool(uint sessionId)
-    {
-        string directory = SpoolDirectory(sessionId);
-        if (!Directory.Exists(directory)) return;
-
-        foreach (string file in Directory.EnumerateFiles(directory))
-        {
-            try { File.Delete(file); }
-            catch (IOException) { /* still mapped by a transfer in progress; it is delete-on-close anyway */ }
-            catch (UnauthorizedAccessException) { }
-        }
     }
 }
