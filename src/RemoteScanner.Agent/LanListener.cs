@@ -34,6 +34,18 @@ public sealed class LanListener
     private readonly int _port;
     private readonly ILogger _log = CommonLog.Logger;
 
+    /// <summary>
+    /// How many connections may be mid-handshake at once.
+    ///
+    /// Each one costs a task, a buffer and up to ten seconds of patience before it is timed
+    /// out, and none of that requires the caller to have proved anything. Without a ceiling,
+    /// anything that can reach the port can make the tray agent hold thousands of them. The
+    /// real number of Remote Desktop sessions scanning to one PC is one, occasionally a few.
+    /// </summary>
+    private const int MaxHandshakesInFlight = 8;
+
+    private readonly SemaphoreSlim _handshakeSlots = new(MaxHandshakesInFlight, MaxHandshakesInFlight);
+
     /// <param name="secret">
     /// Read per connection rather than captured once. The key can be rewritten while this
     /// process runs, and a listener holding a stale copy would refuse every connection for the
@@ -95,9 +107,66 @@ public sealed class LanListener
         }
     }
 
+    /// <summary>
+    /// Whether a caller is close enough to be allowed to try to authenticate.
+    ///
+    /// The installer's firewall rule already scopes this port to the local subnet, and that is
+    /// the primary control — but it lives outside this program, in a rule a user can widen, an
+    /// administrator can replace, or a "allow this app through the firewall" prompt can answer
+    /// generously on somebody's behalf. This is the same restriction stated where it cannot be
+    /// edited by accident.
+    ///
+    /// Loopback is allowed for the self-test, which drives the whole stack on one machine.
+    /// </summary>
+    private static bool IsCallerOnALocalNetwork(IPAddress address)
+    {
+        if (IPAddress.IsLoopback(address)) return true;
+
+        // IPv4-mapped IPv6 arrives on a dual-stack socket; compare it as what it is.
+        if (address.IsIPv4MappedToIPv6) address = address.MapToIPv4();
+
+        if (address.AddressFamily == AddressFamily.InterNetworkV6)
+            return address.IsIPv6LinkLocal || address.IsIPv6SiteLocal;
+
+        Span<byte> octets = stackalloc byte[4];
+        if (!address.TryWriteBytes(octets, out _)) return false;
+
+        return octets[0] switch
+        {
+            10 => true,                                        // 10.0.0.0/8
+            172 => octets[1] >= 16 && octets[1] <= 31,          // 172.16.0.0/12
+            192 => octets[1] == 168,                            // 192.168.0.0/16
+            169 => octets[1] == 254,                            // 169.254.0.0/16, link-local
+            100 => octets[1] >= 64 && octets[1] <= 127,         // 100.64.0.0/10, carrier NAT
+            _ => false,
+        };
+    }
+
     private async Task ServeAsync(TcpClient client, CancellationToken cancellationToken)
     {
         string remote = client.Client.RemoteEndPoint?.ToString() ?? "an unknown address";
+
+        if (client.Client.RemoteEndPoint is not IPEndPoint endpoint ||
+            !IsCallerOnALocalNetwork(endpoint.Address))
+        {
+            _log.Warning(
+                "Refused a direct connection from {Address}: this port only accepts callers on " +
+                "a local network. A Remote Desktop server reaching this PC across the internet " +
+                "is not a supported configuration.", remote);
+            client.Dispose();
+            return;
+        }
+
+        if (!await _handshakeSlots.WaitAsync(TimeSpan.Zero, cancellationToken).ConfigureAwait(false))
+        {
+            _log.Warning(
+                "Refused a direct connection from {Address}: {Count} connections are already " +
+                "waiting to authenticate.", remote, MaxHandshakesInFlight);
+            client.Dispose();
+            return;
+        }
+
+        bool authenticated = false;
 
         try
         {
@@ -112,6 +181,11 @@ public sealed class LanListener
 
             _log.Information("Direct connection from {Peer} ({Address}) accepted and encrypted.",
                              peerName, remote);
+
+            // The slot exists to bound *unauthenticated* callers. Holding it for the whole scan
+            // would cap real sessions at the same small number.
+            _handshakeSlots.Release();
+            authenticated = true;
 
             await using (link)
             {
@@ -129,6 +203,7 @@ public sealed class LanListener
         }
         finally
         {
+            if (!authenticated) _handshakeSlots.Release();
             client.Dispose();
         }
     }

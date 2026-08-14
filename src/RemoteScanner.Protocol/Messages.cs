@@ -79,7 +79,20 @@ public sealed record AuthenticateMessage(byte[] Mac) : IMessage
     public static AuthenticateMessage Read(ref PayloadReader r) => new(r.ReadBytes(MacLength));
 }
 
-public sealed record AuthResultMessage(AuthStatus Status, string Detail) : IMessage
+/// <param name="ResponderMac">
+/// Optional proof that the accepting end also holds the shared key.
+///
+/// Added for the direct network transport, where only the dialling end used to authenticate.
+/// Without it, anything that can occupy the port — or answer for that address — completes a
+/// handshake and learns the caller's nonce and machine name before the first encrypted record
+/// fails. It cannot read or forge traffic either way, since the keys come from a secret it does
+/// not have, but a link should fail at the handshake and say why, not several frames later.
+///
+/// It is appended after the existing fields, and readers that predate it stop after the detail
+/// string, so this stays compatible with the native handshake in rs_pipe.h, which ignores
+/// anything trailing. Empty on the pipe hops, which are protected by the pipe's own ACL.
+/// </param>
+public sealed record AuthResultMessage(AuthStatus Status, string Detail, byte[]? ResponderMac = null) : IMessage
 {
     public MessageType Type => MessageType.AuthResult;
 
@@ -87,9 +100,16 @@ public sealed record AuthResultMessage(AuthStatus Status, string Detail) : IMess
     {
         w.WriteByte((byte)Status);
         w.WriteString(Detail);
+        if (ResponderMac is { Length: > 0 }) w.WriteBlob(ResponderMac);
     }
 
-    public static AuthResultMessage Read(ref PayloadReader r) => new((AuthStatus)r.ReadByte(), r.ReadString());
+    public static AuthResultMessage Read(ref PayloadReader r)
+    {
+        var status = (AuthStatus)r.ReadByte();
+        string detail = r.ReadString();
+        byte[]? mac = r.Remaining > 0 ? r.ReadBlob() : null;
+        return new AuthResultMessage(status, detail, mac);
+    }
 }
 
 public sealed record ScannerEnumRequestMessage : IMessage

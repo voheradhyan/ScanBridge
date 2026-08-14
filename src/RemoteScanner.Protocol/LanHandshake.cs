@@ -61,8 +61,26 @@ public static class LanHandshake
         if (outcome.Status != AuthStatus.Ok)
             throw new IOException($"The scanner PC rejected this server: {outcome.Detail}");
 
+        // The far end proves it holds the key too, over the same two nonces with the opposite
+        // label so neither side's proof can be replayed as the other's. Anything that merely
+        // answers on this address gets no further than here.
+        byte[] expectedResponder = ChannelAuth.ComputeMac(
+            secret, ChannelAuth.ResponderLabel, nonce, peer.Nonce, sessionId: 0);
+
+        if (outcome.ResponderMac is null || !ChannelAuth.Verify(expectedResponder, outcome.ResponderMac))
+        {
+            throw new IOException(
+                "The machine answering on that address accepted the connection but could not " +
+                "prove it holds this pairing key. It is not the PC that was paired with this " +
+                "session. Re-run the pairing step if the PC's key was reset.");
+        }
+
+        // Sent only once the caller has authenticated, so an unauthenticated connection learns
+        // nothing about the machine it reached.
+        string peerName = string.IsNullOrEmpty(outcome.Detail) ? peer.MachineName : outcome.Detail;
+
         var (initiatorKey, responderKey) = SecureLink.DeriveKeys(secret, nonce, peer.Nonce);
-        return (new SecureLink(transport, sendKey: initiatorKey, receiveKey: responderKey), peer.MachineName);
+        return (new SecureLink(transport, sendKey: initiatorKey, receiveKey: responderKey), peerName);
     }
 
     /// <summary>Client side: check the caller holds the secret, then encrypt.</summary>
@@ -95,8 +113,11 @@ public static class LanHandshake
                 $"v{peer.ProtocolVersion}. Install the same build on both.");
         }
 
+        // No machine name yet. Whoever has connected has not proved anything at this point, and
+        // this port is reachable by anything that can route to it — the name of the PC, and by
+        // extension often the name of its owner, is not something to hand out for the asking.
         await SendAsync(transport,
-            new HelloAckMessage(Wire.Version, PeerRole.LocalAgent, Environment.MachineName, nonce,
+            new HelloAckMessage(Wire.Version, PeerRole.LocalAgent, string.Empty, nonce,
                                 PeerCapabilities.FlowControl | PeerCapabilities.Cancellation),
             deadline.Token).ConfigureAwait(false);
 
@@ -109,9 +130,15 @@ public static class LanHandshake
 
         bool ok = ChannelAuth.Verify(expected, ParseAuthenticate(auth).Mac);
 
+        // Our own proof, and our name, only once theirs has checked out.
+        byte[]? responderMac = ok
+            ? ChannelAuth.ComputeMac(secret, ChannelAuth.ResponderLabel, peer.Nonce, nonce, sessionId: 0)
+            : null;
+
         await SendAsync(transport,
             new AuthResultMessage(ok ? AuthStatus.Ok : AuthStatus.BadCredentials,
-                                  ok ? string.Empty : "Shared secret mismatch."),
+                                  ok ? Environment.MachineName : "Shared secret mismatch.",
+                                  responderMac),
             deadline.Token).ConfigureAwait(false);
 
         if (!ok)
