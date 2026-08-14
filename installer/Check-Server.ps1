@@ -3,7 +3,7 @@
     Checks that the ScanBridge server component is installed and able to work.
 
 .DESCRIPTION
-    Run this on the Windows Server after Install-Server.ps1. It reports on each thing that
+    Run this on the Windows Server after ScanBridge-Server.exe --install. It reports on each thing that
     has to be true for a remote application to see the redirected scanner, and says plainly
     what to do about anything that is wrong.
 
@@ -108,7 +108,7 @@ Write-Head "ScanBridge service"
 
 $svc = Get-Service ScanBridge -ErrorAction SilentlyContinue
 if (-not $svc) {
-    Write-Bad "Service" "not installed" "Run INSTALL-ON-SERVER.bat as administrator."
+    Write-Bad "Service" "not installed" "Run ScanBridge-Server.exe --install as administrator."
 } elseif ($svc.Status -ne 'Running') {
     Write-Bad "Service" "installed but $($svc.Status)" `
         "Start it:  Start-Service ScanBridge   then check the logs below."
@@ -140,14 +140,14 @@ if (Test-Path $ds64) {
     Write-Ok "64-bit driver" "$ds64"
 } else {
     Write-Bad "64-bit driver" "missing" `
-        "64-bit programs (Adobe Acrobat) will not see the scanner. Re-run INSTALL-ON-SERVER.bat."
+        "64-bit programs (Adobe Acrobat) will not see the scanner. Re-run ScanBridge-Server.exe --install as administrator."
 }
 
 if (Test-Path $ds32) {
     Write-Ok "32-bit driver" "$ds32"
 } else {
     Write-Bad "32-bit driver" "missing" `
-        "32-bit programs (most accounting/ERP software) will not see the scanner. Re-run INSTALL-ON-SERVER.bat."
+        "32-bit programs (most accounting/ERP software) will not see the scanner. Re-run ScanBridge-Server.exe --install as administrator."
 }
 
 # ------------------------------------------------------- TWAIN manager on the server
@@ -290,7 +290,7 @@ if (-not $twainLogs) {
         }
         'handshake|authentication|secret mismatch' {
             Write-Bad "The server and your PC are running different builds" "" `
-                "Re-run INSTALL-ON-SERVER.bat here AND INSTALL-ON-MY-PC.bat on your PC, from the same folder."
+                "Re-run ScanBridge-Server.exe --install here AND ScanBridge-Client.exe --install on your PC."
             break
         }
         default {
@@ -309,7 +309,7 @@ if ($script:Problems.Count -eq 0) {
     Write-Host "    SERVER LOOKS READY" -ForegroundColor Green
     Write-Host "  ==========================================================" -ForegroundColor White
     Write-Host ""
-    Write-Host "  Next: on the PC with the scanner, run INSTALL-ON-MY-PC.bat,"
+    Write-Host "  Next: on the PC with the scanner, run ScanBridge-Client.exe --install,"
     Write-Host "  then connect here using Remote Desktop Connection (mstsc)."
     Write-Host ""
     Write-Host "  Do NOT use the Microsoft Store 'Windows App' - it cannot" -ForegroundColor Yellow

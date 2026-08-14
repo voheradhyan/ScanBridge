@@ -56,7 +56,7 @@ if not exist "%TARGET%" (
     echo   Could not find ScanBridge on this PC:
     echo     %TARGET%
     echo.
-    echo   Install it first by double-clicking INSTALL-ON-MY-PC.bat
+    echo   Install it first with ScanBridge-Client.exe --install
     echo   ^(do not run that one as administrator^), then run this again.
     echo.
     pause

@@ -228,33 +228,28 @@ foreach ($arch in @('x64', 'x86')) {
     }
 }
 
-# The .bat files are what a non-technical user actually double-clicks; the .ps1 files are
-# what they call. Both are shipped so the scripts stay inspectable.
-Copy-Item (Join-Path $scriptRoot 'Install-Client.ps1')     -Destination $clientOut -Force
-Copy-Item (Join-Path $scriptRoot 'Uninstall-Client.ps1')   -Destination $clientOut -Force
-Copy-Item (Join-Path $scriptRoot 'INSTALL-ON-MY-PC.bat')   -Destination $clientOut -Force
-Copy-Item (Join-Path $scriptRoot 'CHECK-MY-SCANNER.bat')   -Destination $clientOut -Force
+# Diagnostics, not installers.
+#
+# Installing is the executables' own job now — "--install" does everything the old
+# Install-Server.ps1 and Install-Client.ps1 did, from inside the build being installed, so
+# those scripts are gone. What remains here is equipment: things that answer a question about
+# a machine, or reproduce a fault, and are useless without a scanner in the room.
+#
+# They travel with the developer payload folders rather than inside the two distributable
+# executables, because that is who they are for.
+Copy-Item (Join-Path $scriptRoot 'CHECK-MY-SCANNER.bat')      -Destination $clientOut -Force
 Copy-Item (Join-Path $scriptRoot 'ALLOW-DIRECT-CONNECTION.bat') -Destination $clientOut -Force
-Copy-Item (Join-Path $scriptRoot 'UNINSTALL.bat')          -Destination $clientOut -Force
-
 Copy-Item (Join-Path $scriptRoot 'COLLECT-LOGS.bat')          -Destination $clientOut -Force
 Copy-Item (Join-Path $scriptRoot 'Collect-Logs.ps1')          -Destination $clientOut -Force
 Copy-Item (Join-Path $scriptRoot 'TURN-ON-LOGGING-MY-PC.bat') -Destination $clientOut -Force
 Copy-Item (Join-Path $scriptRoot 'READ-ME-FIRST-CLIENT.txt') `
     -Destination (Join-Path $clientOut 'READ-ME-FIRST.txt') -Force
 
-Copy-Item (Join-Path $scriptRoot 'Install-Server.ps1')     -Destination $serverOut -Force
-Copy-Item (Join-Path $scriptRoot 'Uninstall-Server.ps1')   -Destination $serverOut -Force
 Copy-Item (Join-Path $scriptRoot 'Check-Server.ps1')       -Destination $serverOut -Force
-Copy-Item (Join-Path $scriptRoot 'INSTALL-ON-SERVER.bat')  -Destination $serverOut -Force
-Copy-Item (Join-Path $scriptRoot 'UNINSTALL-SERVER.bat')   -Destination $serverOut -Force
 Copy-Item (Join-Path $scriptRoot 'CHECK-SERVER.bat')       -Destination $serverOut -Force
 Copy-Item (Join-Path $scriptRoot 'TURN-ON-LOGGING.bat')    -Destination $serverOut -Force
 Copy-Item (Join-Path $scriptRoot 'CHECK-TWAIN.bat')        -Destination $serverOut -Force
 Copy-Item (Join-Path $scriptRoot 'SELF-TEST.bat')          -Destination $serverOut -Force
-# Reproduces a NAPS2 scan on the PC with the scanner, with no server and no RDP hop. Shipped
-# in the payload rather than kept in installer\ because it is used on whichever machine is
-# convenient, and because the payload is the folder that gets copied around.
 Copy-Item (Join-Path $scriptRoot 'TEST-WITH-NAPS2-LOCALLY.ps1') -Destination $serverOut -Force
 Copy-Item (Join-Path $scriptRoot 'PAIR-WITH-MY-PC.bat')    -Destination $serverOut -Force
 Copy-Item (Join-Path $scriptRoot 'COLLECT-LOGS.bat')       -Destination $serverOut -Force
@@ -364,9 +359,11 @@ if (-not $manager) {
 
 Write-Host ""
 Write-Host "Build complete." -ForegroundColor Green
-Write-Host "  Client payload: $clientOut"
-Write-Host "  Server payload: $serverOut"
 Write-Host ""
-Write-Host "Install with:"
-Write-Host "  on the PC with the scanner   :  $clientOut\Install-Client.ps1"
-Write-Host "  on the Windows Server (admin):  $serverOut\Install-Server.ps1"
+Write-Host "  What you ship:" -ForegroundColor Green
+Write-Host "    $distOut\ScanBridge-Server.exe --install     (on the server, as administrator)"
+Write-Host "    $distOut\ScanBridge-Client.exe --install     (on the PC with the scanner, NOT elevated)"
+Write-Host ""
+Write-Host "  Developer payloads, with the diagnostic tools:"
+Write-Host "    $clientOut"
+Write-Host "    $serverOut"

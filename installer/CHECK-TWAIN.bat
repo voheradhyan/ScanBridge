@@ -24,7 +24,7 @@ echo     1. IS THE DRIVER INSTALLED?
 echo   ============================================
 echo.
 echo   Copying a new folder onto the server does NOT update the installed
-echo   driver. Only INSTALL-ON-SERVER.bat does that.
+echo   driver. Only ScanBridge-Server.exe --install does that.
 echo.
 
 if exist "%DS32%" (for %%F in ("%DS32%") do echo     32-bit : %%~tF  %%~zF bytes) else echo     32-bit : MISSING
@@ -35,12 +35,12 @@ REM both levels, so a leftover copy shows the scanner twice in every program.
 if exist "%SystemRoot%\twain_32\ScanBridge.ds" (
     echo.
     echo     ! %SystemRoot%\twain_32\ScanBridge.ds is a leftover duplicate.
-    echo       Re-run INSTALL-ON-SERVER.bat to remove it.
+    echo       Re-run ScanBridge-Server.exe --install to remove it.
 )
 if exist "%SystemRoot%\twain_64\ScanBridge.ds" (
     echo.
     echo     ! %SystemRoot%\twain_64\ScanBridge.ds is a leftover duplicate.
-    echo       Re-run INSTALL-ON-SERVER.bat to remove it.
+    echo       Re-run ScanBridge-Server.exe --install to remove it.
 )
 
 echo.

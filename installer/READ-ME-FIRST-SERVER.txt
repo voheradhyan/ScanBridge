@@ -17,7 +17,7 @@
      (Do not run it from a network drive.)
 
   STEP 2
-     Double-click:   INSTALL-ON-SERVER.bat
+     Run as admin:   ScanBridge-Server.exe --install
 
      It will ask for administrator rights on its own.
      Click YES on the Windows prompt.
@@ -55,7 +55,7 @@
 ----------------------------------------------------------------
 
   Install on each PC that has a scanner, using the client
-  folder and its INSTALL-ON-MY-PC.bat file.
+  folder and its ScanBridge-Client.exe.
 
   Users must connect with the old "Remote Desktop Connection"
   app (mstsc). The Microsoft Store "Windows App" cannot use
@@ -96,7 +96,7 @@
   TO REMOVE IT
 ----------------------------------------------------------------
 
-  Right-click Uninstall-Server.ps1 and choose
+  Run ScanBridge-Server.exe --uninstall as administrator
   "Run with PowerShell" as an administrator.
 
   Users must sign out and back in afterwards.

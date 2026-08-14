@@ -17,7 +17,7 @@
 ----------------------------------------------------------------
 
   STEP 1
-     Double-click:   INSTALL-ON-MY-PC.bat
+     Run:            ScanBridge-Client.exe --install
 
      >> Just double-click it. <<
      Do NOT right-click and choose "Run as administrator".
@@ -95,7 +95,7 @@
   TO REMOVE IT
 ----------------------------------------------------------------
 
-     Double-click:   UNINSTALL.bat
+     Run:            ScanBridge-Client.exe --uninstall
 
   Your scanner and its own driver are not affected.
 
