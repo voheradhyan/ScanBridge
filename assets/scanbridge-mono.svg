@@ -1,19 +1,36 @@
-<?xml version="1.0" encoding="UTF-8"?>
 <!--
-  ScanBridge mark, single-colour silhouette.
+  ScanBridge, single colour on a transparent ground.
 
-  Same geometry as scanbridge.svg (two piers + a spanning deck) collapsed to one
-  fill so it survives being drawn straight onto a tray background of unknown
-  colour, where Windows will not theme an embedded SVG for you. Fill is
-  currentColor with an Ink Steel (#4A6FA5) fallback — chosen, like the .ico, for
-  holding contrast on both a light and a dark tray at once, since this file has no
-  way to detect which one it is sitting on. The consumer can still set `color` (or
-  edit the fill directly) to something more specific to their surface — see
-  assets/README.md.
+  For places that supply their own background and their own colour: documentation, a README
+  header, a print, anywhere the tile would fight what is around it. Uses currentColor, so it
+  takes the colour of the text it sits in.
+
+  Not for the tray. There the tile version is correct, because a bare glyph has to survive a
+  light taskbar, a dark one and an accent colour, and this one cannot.
 -->
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-label="ScanBridge" style="color:#4A6FA5">
-  <title>ScanBridge</title>
-  <rect fill="currentColor" x="48" y="48" width="48" height="176" rx="16" ry="16"/>
-  <rect fill="currentColor" x="160" y="48" width="48" height="176" rx="16" ry="16"/>
-  <rect fill="currentColor" x="32" y="32" width="192" height="32" rx="16" ry="16"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512"
+     fill="none" stroke="currentColor" role="img" aria-label="ScanBridge">
+  <g stroke-width="16" stroke-linecap="round">
+    <path d="M112 168V128a16 16 0 0 1 16-16h48"/>
+    <path d="M344 112h40a16 16 0 0 1 16 16v40"/>
+    <path d="M112 344v40a16 16 0 0 0 16 16h48"/>
+    <path d="M344 400h40a16 16 0 0 0 16-16v-40"/>
+  </g>
+
+  <g stroke-linecap="round" stroke-linejoin="round">
+    <path stroke-width="16" d="M112 273H400"/>
+    <path stroke-width="16" d="M118 253
+      C153 245 170 225 178 202
+      C195 224 220 239 256 239
+      C292 239 317 224 334 202
+      C342 225 359 245 394 253"/>
+    <path stroke-width="16" d="M178 177V273 M334 177V273"/>
+    <path stroke-width="7" d="M210 225V273 M302 225V273 M256 239V273"/>
+  </g>
+
+  <g fill="currentColor" stroke="none">
+    <rect x="207" y="297" width="98" height="10" rx="5"/>
+    <rect x="194" y="323" width="124" height="10" rx="5"/>
+    <rect x="181" y="349" width="150" height="10" rx="5"/>
+  </g>
 </svg>

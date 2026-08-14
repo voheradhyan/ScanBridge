@@ -27,7 +27,7 @@ is exactly what a tray icon needs.
 
 | Name | Hex | Used for |
 |---|---|---|
-| Ink Steel | `#4A6FA5` | Piers, in `scanbridge.svg`'s default (light) mode, in `scanbridge-mono.svg`'s default fill, and throughout `scanbridge.ico`. |
+| Bridge Navy | `#214A8C` | Piers, in `scanbridge.svg`'s default (light) mode, in `scanbridge-mono.svg`'s default fill, and throughout `scanbridge.ico`. |
 | Span Teal | `#2FD3C7` | The deck, everywhere. The one accent colour — it is the part of the mark that represents ScanBridge itself, so it stays constant across every variant and every background. |
 | Paper | `#E7ECF2` | Pier colour in `scanbridge.svg` only, swapped in under `prefers-color-scheme: dark`. |
 
@@ -40,7 +40,7 @@ background — but a Windows tray or taskbar is at least as often dark
 (`#202020`-ish) as it is light, and `.ico` files cannot ship a `prefers-color-scheme`
 rule the way `scanbridge.svg` can; whatever colour is baked into the icon has to work
 on *both* without knowing which one it will land on. Against `#202020`, that navy
-measured 1.24:1 — close to invisible. Steel Blue (`#4A6FA5`) was chosen to fix that:
+measured 1.24:1 — close to invisible. Steel Blue (`#214A8C`) was chosen to fix that:
 4.61:1 against a light background, 3.19:1 against a near-black one, clearing the
 non-text contrast floor (3:1) on both sides instead of maximizing one at the other's
 expense. `scanbridge.svg` keeps the option to do better than "works on both" — its

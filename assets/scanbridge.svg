@@ -1,36 +1,55 @@
-<?xml version="1.0" encoding="UTF-8"?>
 <!--
-  ScanBridge mark.
+  ScanBridge.
 
-  The idea: two piers (the PC with the scanner, and the remote session that wants to
-  use it) standing on either side of a gap, joined by a single deck spanning across.
-  ScanBridge IS that deck — the thing that makes the far side reachable. Reduced to
-  three flat rounded blocks so it still reads as "bridge" at 16px in a tray, not just
-  at poster size.
+  A capture frame, a bridge, and a page. The corner brackets say "scan" without drawing a
+  scanner, which at icon size is a grey box that could equally be a printer. The span says what
+  the product does: the scanner is on one side, the application is on the other. The lines
+  beneath are what is carried across.
 
-  Colours: Ink Steel #4A6FA5 (the two piers / places), Span Teal #2FD3C7 (the deck /
-  the bridge itself). Steel was picked over a deeper navy because it holds a real
-  contrast ratio against both a white and a near-black background (see assets/README.md)
-  — needed since the same two colours end up in the static .ico, which cannot swap
-  itself for the theme the way this file can. A prefers-color-scheme block still swaps
-  the piers to a light "Paper" tone (#E7ECF2) here, since an SVG can afford to do better
-  than "works on both" when it is allowed to.
+  Drawn full-bleed on a tile rather than as a bare glyph, because the tray gives an icon no say
+  in what colour it is drawn against — light taskbar, dark taskbar, an accent colour — and a
+  tile carries its own background with it.
+
+  This file is the 256px-and-up artwork. Smaller frames of scanbridge.ico are deliberately NOT
+  this drawing: below 48px the hangers are a fifth of a pixel and the whole mark collapses into
+  a blue square with grey haze in it. See assets/README.md and assets/tools/icogen.
 -->
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-label="ScanBridge">
-  <title>ScanBridge</title>
-  <style>
-    .sb-pier { fill: #4A6FA5; }
-    .sb-deck { fill: #2FD3C7; }
-    @media (prefers-color-scheme: dark) {
-      .sb-pier { fill: #E7ECF2; }
-    }
-  </style>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512"
+     role="img" aria-label="ScanBridge">
+  <rect width="512" height="512" rx="92" fill="#214A8C"/>
 
-  <!-- Left pier: the PC with the physical scanner attached -->
-  <rect class="sb-pier" x="48" y="48" width="48" height="176" rx="16" ry="16"/>
-  <!-- Right pier: the remote session that needs the scanner -->
-  <rect class="sb-pier" x="160" y="48" width="48" height="176" rx="16" ry="16"/>
+  <!-- Capture frame -->
+  <g fill="none" stroke="#FFFFFF" stroke-width="16" stroke-linecap="round">
+    <path d="M112 168V128a16 16 0 0 1 16-16h48"/>
+    <path d="M344 112h40a16 16 0 0 1 16 16v40"/>
+    <path d="M112 344v40a16 16 0 0 0 16 16h48"/>
+    <path d="M344 400h40a16 16 0 0 0 16-16v-40"/>
+  </g>
 
-  <!-- Deck: ScanBridge itself, spanning the gap and overlapping both piers -->
-  <rect class="sb-deck" x="32" y="32" width="192" height="32" rx="16" ry="16"/>
+  <!-- Bridge -->
+  <g fill="none" stroke="#FFFFFF" stroke-linecap="round" stroke-linejoin="round">
+    <path stroke-width="16" d="M112 273H400"/>
+
+    <!-- Cables, dipping between the towers and rising to the abutments. -->
+    <path stroke-width="16" d="M118 253
+      C153 245 170 225 178 202
+      C195 224 220 239 256 239
+      C292 239 317 224 334 202
+      C342 225 359 245 394 253"/>
+
+    <!-- Towers, one weight from cap to deck. They were previously drawn twice — 16 above the
+         cable junction and 7 below it — which reads as a mistake at any size big enough to
+         see it. -->
+    <path stroke-width="16" d="M178 177V273 M334 177V273"/>
+
+    <!-- Hangers. The finest detail here, and the first thing dropped as the icon shrinks. -->
+    <path stroke-width="7" d="M210 225V273 M302 225V273 M256 239V273"/>
+  </g>
+
+  <!-- The page being carried across -->
+  <g fill="#FFFFFF">
+    <rect x="207" y="297" width="98" height="10" rx="5"/>
+    <rect x="194" y="323" width="124" height="10" rx="5"/>
+    <rect x="181" y="349" width="150" height="10" rx="5"/>
+  </g>
 </svg>
