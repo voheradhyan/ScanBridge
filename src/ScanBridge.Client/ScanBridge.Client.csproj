@@ -26,6 +26,19 @@
 
        Each is conditional so a plain "dotnet build" still compiles when the native build or the
        host publish has not run; EmbeddedPayload then names precisely what is missing. -->
+  <!-- The icon, both as the executable's own and as a resource the tray reads at runtime.
+       A file beside the program is not a place that exists once this is packed as a single
+       file, and an icon that can go missing from an install is an icon that will. -->
+  <PropertyGroup>
+    <ApplicationIcon>..\..\assets\scanbridge.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\assets\scanbridge.ico"
+                      Condition="Exists('..\..\assets\scanbridge.ico')"
+                      LogicalName="ScanBridge.Icon.ico" />
+  </ItemGroup>
+
   <ItemGroup>
     <EmbeddedResource Include="..\..\build\x64\ScanBridge.DvcPlugin.dll"
                       Condition="Exists('..\..\build\x64\ScanBridge.DvcPlugin.dll')"

@@ -5,10 +5,13 @@
   Same geometry as scanbridge.svg (two piers + a spanning deck) collapsed to one
   fill so it survives being drawn straight onto a tray background of unknown
   colour, where Windows will not theme an embedded SVG for you. Fill is
-  currentColor with a Ink Navy fallback; the consumer sets `color` (or edits the
-  fill directly) to match a light or dark tray — see assets/README.md.
+  currentColor with an Ink Steel (#4A6FA5) fallback — chosen, like the .ico, for
+  holding contrast on both a light and a dark tray at once, since this file has no
+  way to detect which one it is sitting on. The consumer can still set `color` (or
+  edit the fill directly) to something more specific to their surface — see
+  assets/README.md.
 -->
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-label="ScanBridge" style="color:#16324F">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-label="ScanBridge" style="color:#4A6FA5">
   <title>ScanBridge</title>
   <rect fill="currentColor" x="48" y="48" width="48" height="176" rx="16" ry="16"/>
   <rect fill="currentColor" x="160" y="48" width="48" height="176" rx="16" ry="16"/>

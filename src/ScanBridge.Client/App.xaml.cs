@@ -363,8 +363,37 @@ public partial class App : System.Windows.Application
         _trayIcon.DoubleClick += (_, _) => ShowWindow();
     }
 
+    /// <summary>
+    /// The tray icon, taken from inside this executable.
+    ///
+    /// It used to be read from a file next to the program, which stopped being a place that
+    /// exists: packed as a single file there is nothing beside the executable at all. Reading
+    /// it from the assembly also means the icon cannot go missing from an install.
+    ///
+    /// The size is asked for explicitly. The .ico carries seven frames, and letting the
+    /// constructor pick gives whichever Windows considers closest — usually the 32-pixel one,
+    /// scaled down to 16 and slightly soft. SystemInformation.SmallIconSize is what the
+    /// notification area is actually going to draw.
+    /// </summary>
     private static Icon LoadTrayIcon()
     {
+        try
+        {
+            using Stream? embedded = typeof(App).Assembly
+                .GetManifestResourceStream("ScanBridge.Icon.ico");
+
+            if (embedded is not null)
+            {
+                System.Drawing.Size wanted = Forms.SystemInformation.SmallIconSize;
+                return new Icon(embedded, wanted);
+            }
+        }
+        catch (Exception)
+        {
+            // A missing or malformed icon is not a reason to leave the user with no tray
+            // presence at all; the agent behind it still works.
+        }
+
         string path = Path.Combine(AppContext.BaseDirectory, "ScanBridge.ico");
         if (File.Exists(path))
         {
@@ -372,7 +401,6 @@ public partial class App : System.Windows.Application
             catch (ArgumentException) { /* fall through to the stock icon */ }
         }
 
-        // No branded icon shipped yet; the stock application icon is better than crashing.
         return SystemIcons.Application;
     }
 
