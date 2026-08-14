@@ -78,9 +78,40 @@ public partial class App : System.Windows.Application
     }
 
 
+    /// <summary>
+    /// Switches that ask for a one-shot answer on the command line instead of the tray
+    /// application: the diagnostics that have to work on a PC where scanning does not.
+    /// </summary>
+    private static readonly string[] ConsoleRoles =
+    {
+        "--enumerate-once", "--pairing-code", "--headless", "--help", "-?", "/?",
+    };
+
+    [System.Runtime.InteropServices.DllImport("kernel32.dll")]
+    private static extern bool AttachConsole(int processId);
+
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+
+        // The headless agent used to be a second executable. It is a role of this one now, so
+        // there is one file on the user's PC rather than two that could be different builds.
+        //
+        // A WinExe has no console of its own, so it borrows the one it was launched from —
+        // without this, output from these switches goes nowhere and the command looks broken.
+        if (e.Args.Any(a => ConsoleRoles.Contains(a, StringComparer.OrdinalIgnoreCase)))
+        {
+            AttachConsole(-1);   // ATTACH_PARENT_PROCESS
+            int code = RemoteScanner.Agent.Program.RunAsync(e.Args).GetAwaiter().GetResult();
+            Console.Out.Flush();
+
+            // Environment.Exit, not Shutdown: Shutdown() during OnStartup leaves the process
+            // exit code at -1 regardless of what is passed to it, and CHECK-MY-SCANNER.bat and
+            // anything else scripted around these switches reads errorlevel to decide whether
+            // the machine is healthy.
+            Environment.Exit(code);
+            return;
+        }
 
         // Only one agent may run per session: the second one would fail to create the agent
         // pipe (by design - FILE_FLAG_FIRST_PIPE_INSTANCE is what stops another process

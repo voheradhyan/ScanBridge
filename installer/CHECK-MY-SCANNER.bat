@@ -22,7 +22,7 @@ echo.
 echo   Please wait, this takes about 10 seconds...
 echo.
 
-"%~dp0RemoteScanner.Agent.exe" --enumerate-once
+"%~dp0RemoteScanner.Client.exe" --enumerate-once
 
 echo.
 echo   ============================================

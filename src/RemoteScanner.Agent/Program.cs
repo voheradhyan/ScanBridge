@@ -14,7 +14,14 @@ namespace RemoteScanner.Agent;
 [SupportedOSPlatform("windows")]
 public static class Program
 {
-    public static async Task<int> Main(string[] args)
+    /// <summary>
+    /// The headless agent, and the one-shot diagnostics that go with it.
+    ///
+    /// Hosted by the tray application rather than shipped as its own executable: the two were
+    /// always the same agent, and a PC should have one file to install, not two that can end up
+    /// being different builds.
+    /// </summary>
+    public static async Task<int> RunAsync(string[] args)
     {
         Log.Initialize("agent");
         var log = Log.Logger;
