@@ -210,6 +210,35 @@ Copy-Item (Join-Path $scriptRoot 'Collect-Logs.ps1')       -Destination $serverO
 Copy-Item (Join-Path $scriptRoot 'READ-ME-FIRST-SERVER.txt') `
     -Destination (Join-Path $serverOut 'READ-ME-FIRST.txt') -Force
 
+# ------------------------------------------------------- the distributable single file
+#
+# What a person actually downloads. The folder above stays because the diagnostic tools
+# (dsmprobe, pipetest, the self-test) are developer equipment and have no business inside a
+# user-facing installer.
+#
+# Compression roughly halves it at the cost of a second or so of first-run extraction, which is
+# the right trade for something copied across a network to a server.
+
+Write-Step "Packing the server into one file"
+$distOut = Join-Path $buildRoot 'dist'
+New-Item -ItemType Directory -Force -Path $distOut | Out-Null
+
+& dotnet publish (Join-Path $repoRoot 'src\RemoteScanner.Service\RemoteScanner.Service.csproj') `
+    -c $Configuration -r win-x64 --self-contained true `
+    -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true `
+    -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=none `
+    -o (Join-Path $buildRoot 'dist-staging') --nologo -v quiet
+Invoke-Checked "Server single-file publish"
+
+$packed = Join-Path $buildRoot 'dist-staging\RemoteScanner.Service.exe'
+if (-not (Test-Path $packed)) { throw "The single-file publish produced no executable." }
+
+Copy-Item $packed -Destination (Join-Path $distOut 'RemoteScanner-Server.exe') -Force
+Remove-Item (Join-Path $buildRoot 'dist-staging') -Recurse -Force -ErrorAction SilentlyContinue
+
+$packedSize = [math]::Round((Get-Item (Join-Path $distOut 'RemoteScanner-Server.exe')).Length / 1MB, 1)
+Write-Host "    build\dist\RemoteScanner-Server.exe  ($packedSize MB, carries both data sources)"
+
 # ------------------------------------------------------------------ verification
 
 # Ask a real TWAIN manager whether it can discover the data source we just built.

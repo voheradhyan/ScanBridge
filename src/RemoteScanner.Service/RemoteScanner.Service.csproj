@@ -18,6 +18,22 @@
     <PackageReference Include="System.ServiceProcess.ServiceController" Version="8.0.1" />
   </ItemGroup>
 
+  <!-- The two data sources travel inside this executable and are written into the system TWAIN
+       folders when it installs itself. A TWAIN manager looks nowhere else, so they cannot stay
+       resources, but the thing a person downloads is still one file.
+
+       Conditional because a plain "dotnet build" without the native build having run should
+       still compile; EmbeddedPayload.Extract then reports precisely what is missing and how to
+       produce it, rather than failing at a null stream. -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\build\x64\RemoteScanner.ds"
+                      Condition="Exists('..\..\build\x64\RemoteScanner.ds')"
+                      LogicalName="RemoteScanner.Payload.x64/RemoteScanner.ds" />
+    <EmbeddedResource Include="..\..\build\x86\RemoteScanner.ds"
+                      Condition="Exists('..\..\build\x86\RemoteScanner.ds')"
+                      LogicalName="RemoteScanner.Payload.x86/RemoteScanner.ds" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\RemoteScanner.Common\RemoteScanner.Common.csproj" />
     <ProjectReference Include="..\RemoteScanner.Rdp\RemoteScanner.Rdp.csproj" />

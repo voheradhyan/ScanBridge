@@ -107,18 +107,105 @@ public sealed class ScannerService : ServiceBase
     /// </summary>
     public static async Task<int> Main(string[] args)
     {
-        if (args.Length > 0 &&
-            args[0].Equals("--session-agent", StringComparison.OrdinalIgnoreCase))
+        string role = args.Length > 0 ? args[0].ToLowerInvariant() : string.Empty;
+
+        switch (role)
         {
-            return await SessionAgent.Program.RunAsync(args[1..]).ConfigureAwait(false);
+            case "--session-agent":
+                return await SessionAgent.Program.RunAsync(args[1..]).ConfigureAwait(false);
+
+            case "--install":
+                return ServerInstaller.Install(DirectoryArgument(args));
+
+            case "--uninstall":
+                return ServerInstaller.Uninstall();
+
+            case "--extract":
+                return ExtractPayload(DirectoryArgument(args, "--extract"));
+
+            case "--help" or "-?" or "/?":
+                PrintUsage();
+                return 0;
         }
 
         // Pairing is a setup step the user runs in their own session, not a mode of anything.
-        if (args.Length > 0 && args[0].StartsWith("--pair", StringComparison.OrdinalIgnoreCase))
+        if (role.StartsWith("--pair", StringComparison.Ordinal))
             return await SessionAgent.Program.RunAsync(args).ConfigureAwait(false);
+
+        // No arguments and a console attached means a person just ran it. Anything else is the
+        // service control manager starting us, which passes nothing either — the difference is
+        // that it gives us no console.
+        if (args.Length == 0 && Environment.UserInteractive)
+        {
+            PrintUsage();
+            return 0;
+        }
 
         RunService(args);
         return 0;
+    }
+
+    private static string? DirectoryArgument(string[] args, string switchName = "--to")
+    {
+        int index = Array.FindIndex(args, a => a.Equals(switchName, StringComparison.OrdinalIgnoreCase));
+        return index >= 0 && index + 1 < args.Length ? args[index + 1] : null;
+    }
+
+    /// <summary>
+    /// Writes the carried files somewhere harmless and reports their hashes.
+    ///
+    /// Needs no administrator, touches nothing installed, and answers the question that is
+    /// otherwise unanswerable from outside: does this executable really contain both data
+    /// sources, and are they intact? A build assembled without the native components produces
+    /// an installer that looks identical and fails at the last step.
+    /// </summary>
+    private static int ExtractPayload(string? directory)
+    {
+        if (directory is null)
+        {
+            Console.Error.WriteLine("Usage: --extract <folder>");
+            return 2;
+        }
+
+        string[] names = EmbeddedPayload.Names().ToArray();
+        if (names.Length == 0)
+        {
+            Console.Error.WriteLine(
+                "This executable carries no payload. It was built without the native components; " +
+                "rebuild with installer\\Build-All.ps1.");
+            return 3;
+        }
+
+        foreach (string name in names)
+        {
+            string destination = Path.Combine(directory, name.Replace('/', Path.DirectorySeparatorChar));
+            string hash = EmbeddedPayload.Extract(name, destination);
+            var written = new FileInfo(destination);
+            Console.WriteLine($"{name,-28} {written.Length,9:N0} bytes  sha256:{hash}");
+        }
+
+        return 0;
+    }
+
+    private static void PrintUsage()
+    {
+        Console.WriteLine($"""
+            Remote Scanner — server half.
+
+            Scanners attached to a user's own PC, usable by applications running in their
+            Remote Desktop session on this server.
+
+              --install [--to <folder>]   install the service and both data sources
+                                          (default folder: {AppPaths.InstallDirectory})
+              --uninstall                 remove all of it
+              --pair=<code>               pair this session with a PC, for the direct
+                                          connection used when the RDP channel cannot carry data
+              --console                   run the service in the foreground, for diagnostics
+              --help                      this text
+
+            Installing and removing need administrator rights. Pairing does not — it is done by
+            the user, inside their own session.
+            """);
     }
 
     private static void RunService(string[] args)
