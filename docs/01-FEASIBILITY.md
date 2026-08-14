@@ -47,9 +47,15 @@ multiplexing, and there is no practical channel-count limit. **Selected.**
 `mstsc.exe` enumerates DVC plugins from the registry at connect time:
 
 ```
-HKCU\Software\Microsoft\Terminal Server Client\Default\AddIns\RemoteScanner
-    Name = REG_SZ  C:\Program Files\RemoteScanner\RemoteScanner.DvcPlugin.dll
+HKCU\Software\Microsoft\Terminal Server Client\Default\AddIns\ScanBridge
+    Name = REG_SZ  C:\Users\<user>\AppData\Local\Programs\ScanBridge\x64\ScanBridge.DvcPlugin.dll
 ```
+
+Registered under `HKCU`, in the user's own profile — not `Program Files`, and deliberately
+so. The plugin has to be reachable by whichever account is running `mstsc.exe`, and that is
+the same reason the client installer refuses to run elevated: an elevated install would write
+this key into the administrator's hive, where the user who actually opens Remote Desktop
+would never see it.
 
 The DLL must export `VirtualChannelGetInstance` and hand back an object implementing
 `IWTSPlugin` (`tsvirtualchannels.h`). The RDP client then calls
@@ -65,7 +71,7 @@ This is an **in-process COM object loaded into `mstsc.exe`**. Consequences are c
 A process running **in the target session** (not session 0) calls:
 
 ```c
-HANDLE h = WTSVirtualChannelOpenEx(WTS_CURRENT_SESSION, "RemoteScanner",
+HANDLE h = WTSVirtualChannelOpenEx(WTS_CURRENT_SESSION, "ScanBridge",
                                    WTS_CHANNEL_OPTION_DYNAMIC);
 ```
 
@@ -196,8 +202,8 @@ Windows, so x64 is the required build; an x86 build is produced for completeness
 
 | Component | Bitness | Reason |
 |---|---|---|
-| `RemoteScanner.TwainDS.ds` | **x86 and x64** | must match each host application |
-| `RemoteScanner.DvcPlugin.dll` | **x64** (x86 built too) | must match `mstsc.exe` |
+| `ScanBridge.TwainDS.ds` | **x86 and x64** | must match each host application |
+| `ScanBridge.DvcPlugin.dll` | **x64** (x86 built too) | must match `mstsc.exe` |
 | Local agent / server agent / service | AnyCPU → x64 | own processes |
 
 ---
@@ -266,7 +272,7 @@ all of the above. Neither is deprecated in Server 2025.
 | No WIA virtual device → Windows Scan/Fax&Scan unsupported | Medium | Documented; all business TWAIN apps covered |
 | Host app is 32-bit but only 64-bit DS installed | Medium | Installer always deploys **both** |
 | A badly-behaved vendor TWAIN driver hangs the local agent | Medium | Acquisition runs in a **separate child process** (`ScanHost`) so a driver crash cannot kill the agent |
-| Large scans exhausting memory | Medium | Memory-mode strip transfer + streaming to disk-backed spool, never whole-job in RAM |
+| Large scans exhausting memory | Medium | Memory-mode strip transfer; each page is decoded and handed to the host application one at a time, so a 200-page job costs one page of memory. There is no spool — nothing is ever written to server disk |
 | DVC throughput lower than LAN | Low | Per-page compression; JPEG for colour, CCITT G4 for bitonal |
 | Antivirus flagging an unsigned `.ds` in Acrobat | Low | Ship with Authenticode signing hook in the build; documented |
 

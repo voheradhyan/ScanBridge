@@ -1,14 +1,15 @@
-# Remote Scanner — setup guide
+# ScanBridge — setup guide
 
 Scanner plugged into your own PC becomes usable by programs running on the server
 through Remote Desktop.
 
-Two folders, produced by the build:
+Two files, produced by the build, and nothing else to copy alongside them — each carries
+its own payload:
 
-| Folder | Goes to | Size |
+| File | Goes to | Size |
 |---|---|---|
-| `build\server` | the Windows Server, once | 73 MB |
-| `build\client` | every PC that has a scanner | 300 MB |
+| `ScanBridge-Server.exe` | the Windows Server, once | 34 MB |
+| `ScanBridge-Client.exe` | every PC that has a scanner | 104 MB |
 
 Do the server first. A PC installed before the server has nothing to talk to.
 
@@ -16,19 +17,28 @@ Do the server first. A PC installed before the server has nothing to talk to.
 
 ## Part 1 — The server (once, needs an administrator)
 
-1. Copy the whole **`build\server`** folder onto the server itself.
-   Not a network drive — copy it to the server's own disk, e.g. `C:\RemoteScanner`.
+1. Copy **`ScanBridge-Server.exe`** onto the server itself.
+   Not a network drive — copy it to the server's own disk, e.g. `C:\ScanBridge`.
 
-2. Right-click **`INSTALL-ON-SERVER.bat`** → **Run as administrator**.
+2. Open an **administrator** Command Prompt or PowerShell window (Start → type `cmd` →
+   **Run as administrator**) and run:
 
-3. If Windows shows a blue *"Windows protected your PC"* box:
-   **More info** → **Run anyway**.
+   ```
+   C:\ScanBridge\ScanBridge-Server.exe --install
+   ```
 
-4. Wait for the green **DONE**.
+   If Windows shows a blue *"Windows protected your PC"* box: **More info** → **Run anyway**.
 
-5. Double-click **`CHECK-SERVER.bat`**. It should say **SERVER LOOKS READY**.
+3. Wait for **Installed.** Everything else it prints is a record of what it just did — where
+   it put each data source, and that the service is running.
+
+4. Sign out of the server and back in. The service starts a session agent when a session is
+   *created*; a session that was already open before the install never gets one.
 
 Nothing to open on the firewall. It rides the Remote Desktop connection you already have.
+
+Running it without `--install` (or without administrator rights) does nothing but print
+usage and explain what it needs — it never half-installs.
 
 ---
 
@@ -37,14 +47,30 @@ Nothing to open on the firewall. It rides the Remote Desktop connection you alre
 1. **Close Remote Desktop Connection completely.** The installer replaces a file that
    Remote Desktop holds open while it runs.
 
-2. Copy the whole **`build\client`** folder to that PC.
+2. Copy **`ScanBridge-Client.exe`** to that PC — anywhere is fine, e.g. the Desktop or
+   Downloads.
 
-3. Double-click **`INSTALL-ON-MY-PC.bat`**. No administrator needed.
+3. Open an **ordinary** Command Prompt or PowerShell window — **not** "Run as
+   administrator" — and run:
 
-4. When it finishes, **Remote Scanner** appears in the Start Menu and starts automatically
-   with Windows. A small icon sits near the clock.
+   ```
+   ScanBridge-Client.exe --install
+   ```
 
-5. Open it and check your scanner is listed under **Detected scanners**.
+   This has to be the plain, non-elevated way. If you run it elevated it refuses outright
+   and explains why: everything it installs — the Remote Desktop add-in, the key it
+   authenticates with — belongs to your own Windows account. Installed from an
+   administrator prompt, all of that lands in the administrator's account instead, and
+   scanning would never work for you even though the install appeared to succeed.
+
+4. It copies itself to `%LocalAppData%\Programs\ScanBridge`, registers the Remote
+   Desktop add-in for your account, sets itself to start with Windows, and opens
+   automatically. A small icon appears near the clock.
+
+5. Check your scanner is listed under **Detected scanners**. If you need to reopen the
+   window later, run `ScanBridge-Client.exe` again (from where it installed itself, or
+   the copy you downloaded) — it brings the running one to the front rather than starting a
+   second copy.
 
 ### If the PC has more than one scanner
 
@@ -71,7 +97,7 @@ one that is switched off, so a test scan is the only honest check.
 3. Choose the TWAIN driver named:
 
    ```
-   Remote Scanner (YOUR-PC-NAME)
+   ScanBridge (YOUR-PC-NAME)
    ```
 
 4. Scan. The page comes off the scanner on your desk.
@@ -89,15 +115,32 @@ When that happens the server connects to your PC over the network instead. Two o
 
 **On the PC with the scanner**
 
-1. Right-click **`ALLOW-DIRECT-CONNECTION.bat`** → **Run as administrator**.
-   Allows incoming TCP 47214, from your local network only, to Remote Scanner only.
-   (The installer offers this too; this is here for when it was declined.)
+1. Allow the server to reach you: from an **administrator** Command Prompt or PowerShell,
+   run (one line, adjust the path if you installed elsewhere):
 
-2. Open **Remote Scanner** and click **Pairing Code**. It copies to the clipboard.
+   ```
+   netsh advfirewall firewall add rule name="ScanBridge (direct connection)" dir=in ^
+       action=allow protocol=TCP localport=47214 remoteip=LocalSubnet ^
+       program="%LocalAppData%\Programs\ScanBridge\ScanBridge.Client.exe" enable=yes
+   ```
+
+   This allows incoming TCP 47214, from your local network only, to ScanBridge only.
+   Anything that connects still has to prove it holds your pairing code before a single byte
+   of a document moves, and everything after that is encrypted separately from RDP.
+
+2. Get your pairing code:
+
+   ```
+   ScanBridge-Client.exe --pairing-code
+   ```
 
 **In your Remote Desktop session**
 
-3. Run **`PAIR-WITH-MY-PC.bat`** and paste the code.
+3. Run, pasting the code you were given:
+
+   ```
+   ScanBridge-Server.exe --pair=<code>
+   ```
 
 4. Sign out of the server, sign back in, and scan.
 
@@ -131,28 +174,32 @@ The server starts the scanner service for a session when that session is *create
 session that was already open before the install never got one. This is the single most
 common cause.
 
-### 2. Check the server
+### 2. Check the scanner locally
 
-On the server, double-click **`CHECK-SERVER.bat`**.
+On the PC with the scanner, from any Command Prompt:
 
-Read the section **"Last failure reported by the driver"**. It names the cause in plain
-words and says what to do — it distinguishes five faults that all look identical from
-inside the scanning program.
+```
+ScanBridge-Client.exe --enumerate-once
+```
 
-### 3. Check the driver is visible
+This drives the whole local scanner stack with no RDP in the picture and prints what it
+sees. If the scanner is not listed here, the problem has nothing to do with Remote Desktop —
+fix the driver first.
 
-On the server, double-click **`CHECK-TWAIN.bat`**.
+### 3. Check the driver is visible on the server
 
-**Part 2** is the answer. It loads a real TWAIN manager and asks it what it can find.
-PASS means the driver is fine and the problem is elsewhere.
+`CHECK-TWAIN.bat` and `CHECK-SERVER.bat`, and the deeper self-test in step 4, are part of a
+separate diagnostics toolkit that comes with the full build rather than the two installers —
+ask whoever gave you ScanBridge for it, or see `docs/04-TROUBLESHOOTING.md` if you built
+it yourself. `CHECK-TWAIN.bat` loads a real TWAIN manager on the server and asks it what it
+can find; **PASS** means the driver is fine and the problem is elsewhere, **FAIL** means the
+driver itself is at fault.
 
 ### 4. Prove scanning works without Remote Desktop
 
-Copy the **`build\server`** folder to the PC **that has the scanner**, and double-click
-**`SELF-TEST.bat`** there.
-
-It runs everything except the Remote Desktop hop and scans a real page. This splits the
-problem in half:
+`SELF-TEST.bat`, from the same diagnostics toolkit, run on the PC **that has the scanner**,
+runs everything except the Remote Desktop hop and scans a real page. This splits the problem
+in half:
 
 - **PASSED** — scanning works; the fault is the Remote Desktop connection.
 - **FAILED** — ignore Remote Desktop entirely; the fault is on that PC.
@@ -162,10 +209,15 @@ problem in half:
 
 ### 5. Send the logs
 
-Double-click **`COLLECT-LOGS.bat`** on **both** machines and send both zip files.
+Anything running as a signed-in user — the tray application on your PC, the session agent
+and the driver on the server, the plugin inside `mstsc.exe` — logs to its own
+`%LocalAppData%\ScanBridge\logs`. Only the machine-wide service on the server logs to
+`%ProgramData%\ScanBridge\logs`. `COLLECT-LOGS.bat`, from the diagnostics toolkit,
+gathers both locations into one zip on the Desktop; without it, zip the two folders above by
+hand on each machine and send both.
 
-They land on the Desktop. No detailed-logging step to switch on first — the record of
-every message crossing the connection is written by default.
+No detailed-logging step to switch on first — the record of every message crossing the
+connection is written by default.
 
 The two bundles together say which side lost the request:
 
@@ -197,9 +249,10 @@ re-lists WIA devices and never reads driver files. Real scanning programs carry 
 
 ## Removing it
 
-- **A PC:** double-click **`UNINSTALL.bat`** in the client folder.
-- **The server:** double-click **`UNINSTALL-SERVER.bat`**. It asks for administrator
-  rights itself — no right-clicking, no PowerShell.
+- **A PC:** open an ordinary Command Prompt where you installed it and run
+  `ScanBridge-Client.exe --uninstall` — not elevated, same as the install.
+- **The server:** from an administrator Command Prompt, run
+  `ScanBridge-Server.exe --uninstall`.
 
 Everyone must sign out of the server and back in afterwards, or scanning programs keep
 listing a scanner that is no longer there.

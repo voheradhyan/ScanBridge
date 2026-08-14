@@ -929,7 +929,7 @@ int main(int argc, char** argv) {
     std::printf("   data sources the manager reports:\n");
 
     int count = 0;
-    int remoteScannerCount = 0;
+    int scanBridgeCount = 0;
     TW_IDENTITY ours{};
     TW_IDENTITY source{};
 
@@ -944,7 +944,7 @@ int main(int argc, char** argv) {
                     static_cast<unsigned long>(source.SupportedGroups));
 
         if (lstrcmpiA(source.Manufacturer, "ScanBridge") == 0) {
-            ++remoteScannerCount;
+            ++scanBridgeCount;
             ours = source;
         }
 
@@ -959,7 +959,7 @@ int main(int argc, char** argv) {
     // an application, which is a separate decision and can fail on its own.
     bool scanned = false;
 
-    if (alsoOpen && remoteScannerCount > 0) {
+    if (alsoOpen && scanBridgeCount > 0) {
         std::printf("\n   MSG_OPENDS on \"%s\":\n", ours.ProductName);
         TW_UINT16 openRc = entry(&app, nullptr, DG_CONTROL, DAT_IDENTITY, MSG_OPENDS, &ours);
         std::printf("     -> %u (%s)\n", openRc, returnCodeName(openRc));
@@ -987,9 +987,9 @@ int main(int argc, char** argv) {
     removeScratchTree(g_fakeWindowsDirectory);
 
     std::printf("\n   >>> %d source(s) listed; ScanBridge appeared %d time(s) <<<\n",
-                count, remoteScannerCount);
+                count, scanBridgeCount);
 
-    if (remoteScannerCount == 1) {
+    if (scanBridgeCount == 1) {
         if (alsoScan && !scanned) {
             std::printf("\n   FAIL: discovered and opened, but no page was transferred.\n\n");
             return 6;
@@ -998,7 +998,7 @@ int main(int argc, char** argv) {
                     scanned ? " and a page transferred end to end" : "");
         return 0;
     }
-    if (remoteScannerCount > 1) {
+    if (scanBridgeCount > 1) {
         std::printf("\n   FAIL: listed more than once - applications would show duplicates.\n\n");
         return 4;
     }
