@@ -23,8 +23,18 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
-$source = Join-Path $env:ProgramData 'RemoteScanner\logs'
-if (-not (Test-Path $source)) {
+# Two locations, and both are needed to understand a fault.
+#
+# Anything running as the signed-in user — the tray agent, the session agent, the data source
+# inside the scanning application, the plugin inside mstsc.exe — logs into that user's own
+# profile, so that one user on a Session Host cannot read another's. Only the machine-wide
+# service logs to ProgramData. Collecting one without the other leaves half the story.
+$sources = @(
+    Join-Path $env:LOCALAPPDATA 'RemoteScanner\logs',
+    Join-Path $env:ProgramData 'RemoteScanner\logs'
+) | Where-Object { Test-Path $_ }
+
+if ($sources.Count -eq 0) {
     Write-Host "   No logs found. Has anything been run yet?" -ForegroundColor Yellow
     exit 1
 }
@@ -36,7 +46,7 @@ New-Item -ItemType Directory -Force -Path $stage | Out-Null
 $copied = 0
 $failed = @()
 
-foreach ($file in Get-ChildItem $source -File) {
+foreach ($file in ($sources | ForEach-Object { Get-ChildItem $_ -File })) {
     try {
         # FileShare.ReadWrite: the interesting file is usually one a live process is appending to.
         $in = [IO.File]::Open($file.FullName, 'Open', 'Read', 'ReadWrite')

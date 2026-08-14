@@ -30,20 +30,27 @@ public static class Log
     /// Services log errors to the Windows Event Log as well; interactive components do not,
     /// because writing to it from a non-elevated process fails when the source is missing.
     /// </param>
-    public static void Initialize(string component, bool useEventLog = false)
+    /// <param name="machineWide">
+    /// True for the service, which runs as LocalSystem and logs to ProgramData. Everything else
+    /// runs as a signed-in user and logs inside that user's own profile, so that one user on a
+    /// Session Host cannot read another's.
+    /// </param>
+    public static void Initialize(string component, bool useEventLog = false, bool machineWide = false)
     {
         if (_initialised) return;
         _initialised = true;
 
-        AppPaths.EnsureDirectories();
+        AppPaths.EnsureDirectories(machineWide);
         LevelSwitch.MinimumLevel = ReadConfiguredLevel();
+
+        string directory = machineWide ? AppPaths.MachineLogDirectory : AppPaths.LogDirectory;
 
         var configuration = new LoggerConfiguration()
             .MinimumLevel.ControlledBy(LevelSwitch)
             .Enrich.WithProperty("Component", component)
             .Enrich.WithProperty("Pid", Environment.ProcessId)
             .WriteTo.File(
-                Path.Combine(AppPaths.LogDirectory, $"{component}-.log"),
+                Path.Combine(directory, $"{component}-.log"),
                 rollingInterval: RollingInterval.Day,
                 retainedFileCountLimit: 14,
                 fileSizeLimitBytes: 32L * 1024 * 1024,

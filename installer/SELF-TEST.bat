@@ -134,7 +134,7 @@ for /l %%N in (1,1,15) do (
 if not defined AGENT_UP (
     echo.
     echo   The session agent did not start. See the log:
-    echo     %ProgramData%\RemoteScanner\logs\sessionagent-*.log
+    echo     %LocalAppData%\RemoteScanner\logs\sessionagent-*.log
     echo.
     pause
     exit /b 1
@@ -187,7 +187,7 @@ if "%RESULT%"=="0" (
     echo.
     echo   The scan did not complete. The messages above say how far it got.
     echo   The logs have the detail:
-    echo     %ProgramData%\RemoteScanner\logs\
+    echo     %LocalAppData%\RemoteScanner\logs\
     echo.
     echo   Most useful, in this order:
     echo     twainds-*.log       what the driver did

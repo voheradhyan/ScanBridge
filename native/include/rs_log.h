@@ -37,10 +37,19 @@ public:
         level_ = readLevelFromRegistry();
         if (level_ == LogLevel::Off) return;
 
-        wchar_t programData[MAX_PATH]{};
-        if (FAILED(SHGetFolderPathW(nullptr, CSIDL_COMMON_APPDATA, nullptr, 0, programData))) return;
+        // The user's own profile, not ProgramData.
+        //
+        // Both components that use this logger — the data source, inside a scanning
+        // application, and the plugin, inside mstsc.exe — run as the signed-in user. On a
+        // multi-user Session Host a shared directory means every user can read every other
+        // user's logs: their machine names, session ids, scanner models and timings. Page
+        // content is never written at any level, but that list is still more than a colleague
+        // needs. The machine-wide service keeps its own log in ProgramData; nothing that runs
+        // as a user writes there any more.
+        wchar_t localAppData[MAX_PATH]{};
+        if (FAILED(SHGetFolderPathW(nullptr, CSIDL_LOCAL_APPDATA, nullptr, 0, localAppData))) return;
 
-        std::wstring dir = std::wstring(programData) + L"\\RemoteScanner\\logs";
+        std::wstring dir = std::wstring(localAppData) + L"\\RemoteScanner\\logs";
         createDirectoryTree(dir);
 
         wchar_t path[MAX_PATH]{};

@@ -6,7 +6,7 @@ Work top to bottom. Each section narrows the fault to one hop in the chain:
 remote app → RemoteScanner.ds → SessionAgent → [RDP DVC] → DvcPlugin → Agent → ScanHost → scanner
 ```
 
-Logs for every component: `%ProgramData%\RemoteScanner\logs\` on both machines.
+Logs for every component: `%LocalAppData%\RemoteScanner\logs\` on both machines.
 Native components log there too (`twainds-<pid>.log`, `dvcplugin-<pid>.log`).
 
 ---
@@ -280,7 +280,7 @@ Users must sign out and back in for their applications to stop listing it.
 ## Collecting a diagnostic bundle
 
 Tray app → **Diagnostics** writes a report to
-`%ProgramData%\RemoteScanner\logs\diagnostics-<timestamp>.txt` covering the client PC,
+`%LocalAppData%\RemoteScanner\logs\diagnostics-<timestamp>.txt` covering the client PC,
 ScanHost availability, add-in registration, scanners found, RDP sessions and active links.
 
 Send that plus the `logs` directory from **both** machines. Set

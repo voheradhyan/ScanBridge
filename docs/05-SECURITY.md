@@ -86,9 +86,14 @@ spawn and reap one child per session. It never touches page data.
 
 - Pages are encoded (JPEG / PNG / CCITT G4) at the source and never written to disk on the
   client.
-- On the server, in-flight pages spool to `%ProgramData%\RemoteScanner\spool\<sessionId>\`,
-  opened `FILE_FLAG_DELETE_ON_CLOSE`.
-- Spool is purged when a job ends, when the session agent exits, and on uninstall.
+- **Nor on the server.** A page is decoded in the data source's memory and handed to the
+  application through the transfer mechanism it asked for; the only file ever written is one
+  the *application* itself named through `DAT_SETUPFILEXFER`, in that application's own user
+  context.
+- Earlier revisions of this document described a spool directory under `%ProgramData%`. There
+  was code to create and purge one, but nothing ever wrote to it, and it was removed on
+  14 Aug 2026. Believing it existed would have understated the guarantee: pages do not touch
+  server disk at all.
 - Documents are never stored permanently. There is no "keep a copy" path.
 - **Page content is never logged, at any level.** Logs carry sizes, page counts, dimensions
   and CRCs only. This is enforced structurally: the native logger has no API that accepts

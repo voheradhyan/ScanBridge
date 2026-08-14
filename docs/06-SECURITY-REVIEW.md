@@ -103,18 +103,23 @@ process and its user's token, so it can write nothing the application could not 
 Relative path segments are rejected to avoid surprising traversal through a path an application
 built by concatenation.
 
+### 9. Every user on the RDS host could read every other user's logs · medium–low · fixed
+
+`Install-Server.ps1` granted `BUILTIN\Users` Modify over `%ProgramData%\RemoteScanner`,
+recursively, so that session agents running as different users could write there. The
+consequence was that any user on a Session Host could read all of it: machine names, user SIDs,
+session ids, scanner models, link timings. No document content — pages are never written to a
+log at any level — but on a multi-user host that is more than a user needs to know about their
+colleagues.
+
+Everything that runs as a signed-in user — the tray agent, the session agent, the data source
+inside the scanning application, the plugin inside `mstsc.exe` — now logs to
+`%LocalAppData%\RemoteScanner\logs`, on both the managed and the native side. Only the service,
+which runs as LocalSystem and belongs to no user, writes to ProgramData, so the installer no
+longer widens its permissions at all. `COLLECT-LOGS.bat` gathers both locations, since a fault
+usually needs the pair.
+
 ## Scheduled
-
-### 9. Every user on the RDS host can read every other user's logs · medium–low
-
-`Install-Server.ps1` grants `BUILTIN\Users` Modify over `%ProgramData%\RemoteScanner`,
-recursively, so that session agents running as different users can write there. The consequence
-is that any user on a Session Host can read all of it: machine names, user SIDs, session ids,
-scanner models, link timings. No document content — pages are never written to a log at any
-level — but on a multi-user host this is more than a user needs to know about their colleagues.
-
-Fix in the packaging phase, where the layout is being rebuilt anyway: per-session components log
-under the user's own profile, and only the machine-wide service keeps a shared location.
 
 ### 10. The two DLLs that load into third-party processes are unsigned
 

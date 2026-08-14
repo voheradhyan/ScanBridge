@@ -193,8 +193,8 @@ Illegal state transitions return `TWCC_SEQERROR` — required, because applicati
 
 ## 9. Logging
 
-Serilog on managed side (rolling file, `%ProgramData%\RemoteScanner\logs`, Windows Event Log
+Serilog on managed side (rolling file, `%LocalAppData%\RemoteScanner\logs`, Windows Event Log
 sink for Error+). The native components write their own lightweight structured line log
-(`%ProgramData%\RemoteScanner\logs\twainds-<pid>.log`) because they cannot take a .NET
+(`%LocalAppData%\RemoteScanner\logs\twainds-<pid>.log`) because they cannot take a .NET
 dependency. Both use the same field names so the diagnostics report can merge them.
 **Page pixel data is never logged**, at any level; only sizes and hashes.

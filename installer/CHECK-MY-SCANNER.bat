@@ -35,6 +35,6 @@ echo     2. Does it work in its own software, or in Windows Fax and Scan?
 echo     3. Try unplugging and replugging the USB cable.
 echo.
 echo   Detailed logs are in:
-echo     %%ProgramData%%\RemoteScanner\logs
+echo     %%LocalAppData%%\RemoteScanner\logs
 echo.
 pause

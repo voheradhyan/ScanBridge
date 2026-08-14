@@ -171,11 +171,16 @@ Write-Step "Setting the default log level"
 New-Item -Path 'HKLM:\SOFTWARE\RemoteScanner' -Force | Out-Null
 Set-ItemProperty -Path 'HKLM:\SOFTWARE\RemoteScanner' -Name 'LogLevel' -Value 'Information' -Type String
 
-# ProgramData holds logs written by every session agent, so all users need to write there.
+# ProgramData holds only the service's own log now, and the service runs as LocalSystem.
+#
+# This used to grant BUILTIN\Users modify rights over the whole tree, because every session
+# agent logged here. The consequence on a Session Host was that any user could read every other
+# user's logs — machine names, session ids, scanner models, connection times. Page content is
+# never written at any level, but that is still more than a colleague needs. Everything that
+# runs as a user now logs inside that user's own profile, so the default permissions stand.
 Write-Step "Preparing %ProgramData%\RemoteScanner"
 $dataDir = Join-Path $env:ProgramData 'RemoteScanner'
 New-Item -ItemType Directory -Force -Path (Join-Path $dataDir 'logs') | Out-Null
-& icacls $dataDir /grant '*S-1-5-32-545:(OI)(CI)M' /T /Q | Out-Null   # BUILTIN\Users: modify
 
 if (-not $NoStart) {
     Write-Step "Starting the service"

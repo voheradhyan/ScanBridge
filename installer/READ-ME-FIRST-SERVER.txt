@@ -47,7 +47,7 @@
     It starts automatically.
 
   Log files, if IT ever needs them:
-      C:\ProgramData\RemoteScanner\logs
+      %LocalAppData%\RemoteScanner\logs
 
 
 ----------------------------------------------------------------

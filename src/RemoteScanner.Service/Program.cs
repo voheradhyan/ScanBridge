@@ -32,8 +32,8 @@ public sealed class ScannerService : ServiceBase
 
     protected override void OnStart(string[] args)
     {
-        CommonLog.Initialize("service", useEventLog: true);
-        AppPaths.EnsureDirectories();
+        CommonLog.Initialize("service", useEventLog: true, machineWide: true);
+        AppPaths.EnsureDirectories(machineWide: true);
 
         // The agent is this same executable in another role, so there is no second file to
         // find and no way for the two to be different builds.
@@ -127,8 +127,8 @@ public sealed class ScannerService : ServiceBase
         // same work in the foreground so its log output can be watched live.
         if (args.Contains("--console"))
         {
-            CommonLog.Initialize("service");
-            AppPaths.EnsureDirectories();
+            CommonLog.Initialize("service", machineWide: true);
+            AppPaths.EnsureDirectories(machineWide: true);
 
             var service = new ScannerService();
             service.OnStart(args);
