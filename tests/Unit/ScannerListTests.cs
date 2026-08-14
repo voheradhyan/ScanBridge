@@ -1,4 +1,4 @@
-using RemoteScanner.Agent;
+﻿using RemoteScanner.Agent;
 using RemoteScanner.Protocol;
 using Xunit;
 
@@ -7,9 +7,12 @@ namespace RemoteScanner.Tests.Unit;
 /// <summary>
 /// Tests for the list a remote session is offered.
 ///
-/// The names here are the real ones observed from a Brother DCP-T525W and DCP-T520W on
-/// Windows 11, including the 32-character truncation TWAIN applies to product names, because
-/// that truncation is the whole reason a naive equality check does not collapse the duplicates.
+/// The names are synthetic but structurally exact: same lengths, same "WIA-" prefix, and the
+/// same point of truncation as the real pairs this was built against. TWAIN carries product
+/// names in a TW_STR32 and cuts them off, so a shimmed device's TWAIN name is only ever a
+/// prefix of its WIA name, never equal to it — which is the whole reason a naive equality
+/// check fails to collapse the duplicates. Shortening these strings would silently stop the
+/// tests exercising that.
 /// </summary>
 public sealed class ScannerListTests
 {
@@ -26,10 +29,10 @@ public sealed class ScannerListTests
     {
         var raw = new[]
         {
-            Wia("Brother DCP-T525W [ec91610acce7]", "wia:{guid}\\0003"),
+            Wia("Contoso IJ-48200W [a1b2c3d4e5f6]", "wia:{guid}\\0003"),
             // TW_STR32 cuts the name off at 32 characters, so this is never equal to the WIA
             // name above — only ever a prefix of it.
-            Twain("WIA-Brother DCP-T525W [ec91610acc", "twain:WIA-Brother DCP-T525W"),
+            Twain("WIA-Contoso IJ-48200W [a1b2c3d4e5", "twain:WIA-Contoso IJ-48200W"),
         };
 
         IReadOnlyList<ScannerInfo> result = ScannerList.CollapseWiaShimDuplicates(raw);
@@ -43,12 +46,12 @@ public sealed class ScannerListTests
     {
         var raw = new[]
         {
-            Wia("Brother DCP-T525W [ec91610acce7]", "wia:a"),
-            Wia("Brother DCP-T525W [ec91610ac3d4]", "wia:b"),
-            Wia("Brother DCP-T520W [3003c85455db]", "wia:c"),
-            Twain("WIA-Brother DCP-T525W [ec91610acc", "twain:a"),
-            Twain("WIA-Brother DCP-T525W [ec91610ac3", "twain:b"),
-            Twain("WIA-Brother DCP-T520W [3003c85455", "twain:c"),
+            Wia("Contoso IJ-48200W [a1b2c3d4e5f6]", "wia:a"),
+            Wia("Contoso IJ-48200W [a1b2c3d4f7a8]", "wia:b"),
+            Wia("Contoso IJ-48100W [9f8e7d6c5b4a]", "wia:c"),
+            Twain("WIA-Contoso IJ-48200W [a1b2c3d4e5", "twain:a"),
+            Twain("WIA-Contoso IJ-48200W [a1b2c3d4f7", "twain:b"),
+            Twain("WIA-Contoso IJ-48100W [9f8e7d6c5b", "twain:c"),
         };
 
         IReadOnlyList<ScannerInfo> result = ScannerList.CollapseWiaShimDuplicates(raw);
@@ -64,8 +67,8 @@ public sealed class ScannerListTests
         // WIA path, so it must survive. Losing it would silently downgrade the user.
         var raw = new[]
         {
-            Wia("Brother DCP-T525W [ec91610acce7]", "wia:a"),
-            Twain("Brother DCP-T525W", "twain:brother"),
+            Wia("Contoso IJ-48200W [a1b2c3d4e5f6]", "wia:a"),
+            Twain("Contoso IJ-48200W", "twain:shim"),
         };
 
         IReadOnlyList<ScannerInfo> result = ScannerList.CollapseWiaShimDuplicates(raw);
@@ -80,7 +83,7 @@ public sealed class ScannerListTests
         // matching WIA device is the only way to reach that scanner, so it stays.
         var raw = new[]
         {
-            Wia("Brother DCP-T520W [3003c85455db]", "wia:c"),
+            Wia("Contoso IJ-48100W [9f8e7d6c5b4a]", "wia:c"),
             Twain("WIA-Canon LiDE 300", "twain:canon"),
         };
 
@@ -95,8 +98,8 @@ public sealed class ScannerListTests
         // Position is the selection mechanism: the data source binds to index 0.
         var scanners = new[]
         {
-            Wia("Brother DCP-T525W", "wia:a"),
-            Wia("Brother DCP-T520W", "wia:b"),
+            Wia("Contoso IJ-48200W", "wia:a"),
+            Wia("Contoso IJ-48100W", "wia:b"),
             Wia("Canon LiDE 300", "wia:c"),
         };
 
@@ -143,10 +146,10 @@ public sealed class ScannerListTests
         // be removed, leaving the wrong scanner first.
         var raw = new[]
         {
-            Wia("Brother DCP-T525W [ec91610acce7]", "wia:a"),
-            Twain("WIA-Brother DCP-T525W [ec91610acc", "twain:a"),
-            Wia("Brother DCP-T520W [3003c85455db]", "wia:c"),
-            Twain("WIA-Brother DCP-T520W [3003c85455", "twain:c"),
+            Wia("Contoso IJ-48200W [a1b2c3d4e5f6]", "wia:a"),
+            Twain("WIA-Contoso IJ-48200W [a1b2c3d4e5", "twain:a"),
+            Wia("Contoso IJ-48100W [9f8e7d6c5b4a]", "wia:c"),
+            Twain("WIA-Contoso IJ-48100W [9f8e7d6c5b", "twain:c"),
         };
 
         IReadOnlyList<ScannerInfo> result = ScannerList.Arrange(raw, "wia:c");

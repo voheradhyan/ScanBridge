@@ -1,4 +1,4 @@
-# Setup
+﻿# Setup
 
 ## What you need
 
@@ -71,7 +71,7 @@ any group policy that would block add-ins, and starts the tray agent.
 2. Connect to the server with **`mstsc.exe`**. (Connect *after* the agent is running; the
    plugin is loaded at connect time.)
 3. In the remote session open any TWAIN application — Acrobat, your ERP, NAPS2, IrfanView.
-4. Choose **File → Import / Acquire → Select Source**.
+4. Choose **File â†’ Import / Acquire â†’ Select Source**.
 5. Pick **`Remote Scanner (YOUR-PC-NAME)`**.
 6. Scan. The pages appear in the remote application.
 
@@ -90,13 +90,13 @@ RDP in the picture, and prints what each one can see:
 
 ```
 x64 host: 2 scanner(s)
-    Brother DCP-T525W [...]  [Wia]  Microsoft
+    Contoso IJ-48200W [...]  [Wia]  Microsoft
         dpi        : 150, 200, 300, 600
         colour     : BlackWhite, Grayscale, Rgb
         features   : Flatbed, Color, Grayscale, BlackWhite
         bed (in)   : 8.5 x 14
 x86 host: 2 scanner(s)
-    WIA-Brother DCP-T525W [...]  [Twain]  Microsoft
+    WIA-Contoso IJ-48200W [...]  [Twain]  Microsoft
         ...
 ```
 

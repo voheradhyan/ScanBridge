@@ -1,4 +1,4 @@
-using RemoteScanner.Protocol;
+﻿using RemoteScanner.Protocol;
 
 namespace RemoteScanner.Agent;
 
@@ -30,8 +30,8 @@ public static class ScannerList
     /// inches while returning success.
     ///
     /// The shim's name is matched by prefix rather than equality because TWAIN product names
-    /// are TW_STR32 and are truncated at 32 characters, so "WIA-Brother DCP-T525W
-    /// [ec91610acce7]" arrives as "WIA-Brother DCP-T525W [ec91610acc" — never equal to the WIA
+    /// are TW_STR32 and are truncated at 32 characters, so "WIA-Contoso IJ-48200W
+    /// [a1b2c3d4e5f6]" arrives as "WIA-Contoso IJ-48200W [a1b2c3d4e5" — never equal to the WIA
     /// name, always a prefix of it.
     ///
     /// A real vendor TWAIN driver is untouched: those are not named "WIA-anything", and where
