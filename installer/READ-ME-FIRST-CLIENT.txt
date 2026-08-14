@@ -1,0 +1,102 @@
+================================================================
+  REMOTE SCANNER - INSTALL ON YOUR PC
+================================================================
+
+  WHAT THIS DOES
+
+  It lets the scanner attached to YOUR PC be used by programs
+  running on the office server, when you connect with Remote
+  Desktop.
+
+  No more: scan, save a PDF, then upload it. You just press
+  Scan inside the program on the server, and your scanner runs.
+
+
+----------------------------------------------------------------
+  HOW TO INSTALL  (about 1 minute)
+----------------------------------------------------------------
+
+  STEP 1
+     Double-click:   INSTALL-ON-MY-PC.bat
+
+     >> Just double-click it. <<
+     Do NOT right-click and choose "Run as administrator".
+     If you do, it will stop and tell you off. That is on
+     purpose - it would install into the wrong account and
+     nothing would work.
+
+  STEP 2
+     If Windows shows a blue "Windows protected your PC" box:
+         click "More info", then "Run anyway".
+     This appears because the program is not yet signed.
+
+  STEP 3
+     Wait for the green DONE message, then press any key.
+
+  STEP 4
+     Look at the bottom-right of your screen, near the clock.
+     There is now a Remote Scanner icon. You may need to click
+     the small arrow (^) to see it.
+
+  That is the whole installation. It starts automatically
+  every time you turn your PC on.
+
+
+----------------------------------------------------------------
+  HOW TO USE IT
+----------------------------------------------------------------
+
+  1. Make sure your scanner is switched on.
+
+  2. Connect to the server using "Remote Desktop Connection".
+
+     *** IMPORTANT ***
+     Use the old "Remote Desktop Connection" app.
+     (Press the Windows key, type:  mstsc  and press Enter.)
+
+     Do NOT use the newer "Windows App" or "Remote Desktop"
+     from the Microsoft Store. Those cannot use scanners.
+     There is no way around this.
+
+  3. Inside the server, open the program you scan with
+     (Acrobat, your accounts software, etc.)
+
+  4. Choose Scan, or Import, or Acquire.
+     When it asks which scanner, pick:
+
+         Remote Scanner (YOUR-PC-NAME)
+
+  5. Scan as normal. The pages appear on the server.
+
+
+----------------------------------------------------------------
+  IF THE SCANNER DOES NOT APPEAR
+----------------------------------------------------------------
+
+  Do this FIRST, before calling anyone:
+
+     Double-click:   CHECK-MY-SCANNER.bat
+
+  It checks your PC only, and takes about 10 seconds.
+
+  If it LISTS your scanner:
+     Your PC is fine. The problem is the Remote Desktop
+     connection. Most likely you used the wrong Remote
+     Desktop app - see the *** IMPORTANT *** note above.
+
+  If it lists NOTHING, or says "0 scanner(s)":
+     The problem is the scanner itself. Check it is switched
+     on and plugged in, and that it works in its own software.
+
+  Either way, send the result to your IT contact.
+
+
+----------------------------------------------------------------
+  TO REMOVE IT
+----------------------------------------------------------------
+
+     Double-click:   UNINSTALL.bat
+
+  Your scanner and its own driver are not affected.
+
+================================================================

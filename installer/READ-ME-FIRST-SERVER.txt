@@ -1,0 +1,104 @@
+================================================================
+  REMOTE SCANNER - INSTALL ON THE SERVER
+================================================================
+
+  Do this ONCE, on the Windows Server that people connect to
+  with Remote Desktop.
+
+  Do it BEFORE installing on anybody's PC.
+
+
+----------------------------------------------------------------
+  HOW TO INSTALL  (about 2 minutes)
+----------------------------------------------------------------
+
+  STEP 1
+     Copy this whole folder onto the server itself.
+     (Do not run it from a network drive.)
+
+  STEP 2
+     Double-click:   INSTALL-ON-SERVER.bat
+
+     It will ask for administrator rights on its own.
+     Click YES on the Windows prompt.
+
+  STEP 3
+     If Windows shows a blue "Windows protected your PC" box:
+         click "More info", then "Run anyway".
+
+  STEP 4
+     Wait for the green DONE message.
+
+  Nothing else is needed. There is no port to open and no
+  firewall rule to add - it uses the Remote Desktop connection
+  that already exists.
+
+
+----------------------------------------------------------------
+  WHAT IT INSTALLED
+----------------------------------------------------------------
+
+  * A virtual scanner driver, so programs on the server can
+    see a scanner. Installed in both 32-bit and 64-bit form,
+    because older programs need one and newer ones need the
+    other.
+
+  * A Windows service called "Remote Scanner Redirection".
+    It starts automatically.
+
+  Log files, if IT ever needs them:
+      C:\ProgramData\RemoteScanner\logs
+
+
+----------------------------------------------------------------
+  NEXT
+----------------------------------------------------------------
+
+  Install on each PC that has a scanner, using the client
+  folder and its INSTALL-ON-MY-PC.bat file.
+
+  Users must connect with the old "Remote Desktop Connection"
+  app (mstsc). The Microsoft Store "Windows App" cannot use
+  scanners.
+
+
+----------------------------------------------------------------
+  IF SOMETHING DOES NOT WORK
+----------------------------------------------------------------
+
+  On the SERVER, when a program does not list "Remote Scanner":
+
+      Double-click:   CHECK-TWAIN.bat
+
+  Part 2 of its output is the answer. It loads a real TWAIN
+  manager and asks it what it can find. PASS means the driver
+  is fine and the problem is elsewhere; FAIL means it is not.
+
+
+  On a PC WITH A SCANNER, to test everything except Remote
+  Desktop - including a real scan:
+
+      Copy this folder to that PC, then double-click:
+      SELF-TEST.bat
+
+  This is the fastest way to tell the two halves apart. If the
+  self-test passes, scanning works and the fault is in the
+  Remote Desktop connection. If it fails, the fault is on that
+  PC and Remote Desktop is not involved at all.
+
+
+  To send logs to whoever is helping:
+
+      Double-click:   COLLECT-LOGS.bat
+
+
+----------------------------------------------------------------
+  TO REMOVE IT
+----------------------------------------------------------------
+
+  Right-click Uninstall-Server.ps1 and choose
+  "Run with PowerShell" as an administrator.
+
+  Users must sign out and back in afterwards.
+
+================================================================

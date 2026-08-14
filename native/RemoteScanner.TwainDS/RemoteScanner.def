@@ -1,0 +1,11 @@
+; A TWAIN Data Source exports DS_Entry — NOT DSM_Entry, which is what a Data Source
+; *Manager* exports for applications to call. TWAINDSM.dll resolves "DS_Entry" by name on
+; every .ds it finds and silently skips any file that does not have it.
+;
+; Exported undecorated: DS_Entry is __stdcall, which on x86 would otherwise be emitted as
+; _DS_Entry@20 and be invisible to the manager.
+;
+; Ordinal 1 as well, because some pre-2.0 managers resolve the entry point by ordinal
+; instead of by name.
+EXPORTS
+    DS_Entry @1

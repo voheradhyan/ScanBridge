@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AssemblyName>RemoteScanner.SessionAgent</AssemblyName>
+    <RootNamespace>RemoteScanner.SessionAgent</RootNamespace>
+    <!-- Console host with no window: the user never sees this process. -->
+    <PlatformTarget>x64</PlatformTarget>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\RemoteScanner.Common\RemoteScanner.Common.csproj" />
+    <ProjectReference Include="..\RemoteScanner.Protocol\RemoteScanner.Protocol.csproj" />
+    <ProjectReference Include="..\RemoteScanner.Rdp\RemoteScanner.Rdp.csproj" />
+  </ItemGroup>
+
+</Project>

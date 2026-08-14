@@ -1,0 +1,20 @@
+# Build output
+build/
+bin/
+obj/
+
+# Visual Studio / Rider / VS Code
+.vs/
+.idea/
+*.user
+*.suo
+
+# Native intermediates
+*.obj
+*.pdb
+*.ilk
+*.exp
+*.lib
+
+# Logs produced while testing locally
+*.log

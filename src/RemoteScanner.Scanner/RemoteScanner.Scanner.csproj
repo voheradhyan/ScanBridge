@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AssemblyName>RemoteScanner.Scanner</AssemblyName>
+    <RootNamespace>RemoteScanner.Scanner</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- GDI+ encoders. Used to turn the DIB a TWAIN native transfer returns into JPEG or
+         PNG; it already understands every palette layout and row order a scanner driver
+         might produce, which hand-rolled code would have to get right for each one. -->
+    <PackageReference Include="System.Drawing.Common" Version="8.0.10" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\RemoteScanner.Common\RemoteScanner.Common.csproj" />
+    <ProjectReference Include="..\RemoteScanner.Protocol\RemoteScanner.Protocol.csproj" />
+  </ItemGroup>
+
+</Project>

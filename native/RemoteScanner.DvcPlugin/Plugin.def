@@ -1,0 +1,3 @@
+; mstsc.exe resolves this export by name to obtain the IWTSPlugin instance.
+EXPORTS
+    VirtualChannelGetInstance

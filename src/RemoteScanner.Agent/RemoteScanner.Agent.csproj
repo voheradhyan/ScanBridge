@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AssemblyName>RemoteScanner.Agent</AssemblyName>
+    <RootNamespace>RemoteScanner.Agent</RootNamespace>
+    <PlatformTarget>x64</PlatformTarget>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\RemoteScanner.Common\RemoteScanner.Common.csproj" />
+    <ProjectReference Include="..\RemoteScanner.Protocol\RemoteScanner.Protocol.csproj" />
+    <ProjectReference Include="..\RemoteScanner.Rdp\RemoteScanner.Rdp.csproj" />
+  </ItemGroup>
+
+</Project>
