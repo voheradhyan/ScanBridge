@@ -49,7 +49,7 @@ if not defined CODE (
 )
 
 echo.
-"%HERE%RemoteScanner.SessionAgent.exe" --pair="%CODE%"
+"%HERE%RemoteScanner.Service.exe" --pair="%CODE%"
 set "RESULT=%errorlevel%"
 
 if "%RESULT%"=="0" (

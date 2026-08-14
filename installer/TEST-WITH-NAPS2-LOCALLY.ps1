@@ -38,12 +38,26 @@ if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administra
 }
 
 $targets = @(
-    @{ Dir = 'C:\Windows\twain_64\RemoteScanner'; File = Join-Path $Source 'x64\RemoteScanner.ds' },
-    @{ Dir = 'C:\Windows\twain_32\RemoteScanner'; File = Join-Path $Source 'x86\RemoteScanner.ds' }
+    @{ Dir = Join-Path $env:SystemRoot 'twain_64\RemoteScanner'; File = Join-Path $Source 'x64\RemoteScanner.ds' },
+    @{ Dir = Join-Path $env:SystemRoot 'twain_32\RemoteScanner'; File = Join-Path $Source 'x86\RemoteScanner.ds' }
 )
 
+# The session agent shares an executable with the server service, so both of these match on the
+# command line. Matching on the image name would stop a running service — on a machine that is
+# both a client and a server, that is somebody's live scanning session.
+function Get-SessionAgents {
+    Get-CimInstance Win32_Process -Filter "Name='RemoteScanner.Service.exe'" -ErrorAction SilentlyContinue |
+        Where-Object { $_.CommandLine -like '*--session-agent*' }
+}
+
+function Stop-SessionAgents {
+    foreach ($agent in @(Get-SessionAgents)) {
+        try { Stop-Process -Id $agent.ProcessId -Force -ErrorAction Stop } catch {}
+    }
+}
+
 if ($Remove) {
-    Get-Process -Name 'RemoteScanner.SessionAgent' -ErrorAction SilentlyContinue | ForEach-Object { $_.Kill() }
+    Stop-SessionAgents
     foreach ($t in $targets) {
         if (Test-Path $t.Dir) {
             try { Remove-Item -Recurse -Force $t.Dir; Write-Host "removed $($t.Dir)" }
@@ -68,11 +82,11 @@ foreach ($t in $targets) {
 }
 
 Write-Host "==> Starting the session agent in loopback mode"
-Get-Process -Name 'RemoteScanner.SessionAgent' -ErrorAction SilentlyContinue | ForEach-Object { $_.Kill() }
-Start-Process -FilePath (Join-Path $Source 'RemoteScanner.SessionAgent.exe') `
-              -ArgumentList '--loopback' -WindowStyle Minimized
+Stop-SessionAgents
+Start-Process -FilePath (Join-Path $Source 'RemoteScanner.Service.exe') `
+              -ArgumentList '--session-agent', '--loopback' -WindowStyle Minimized
 Start-Sleep -Seconds 3
-if (-not (Get-Process -Name 'RemoteScanner.SessionAgent' -ErrorAction SilentlyContinue)) {
+if (-not (Get-SessionAgents)) {
     throw "The session agent did not start. See %ProgramData%\RemoteScanner\logs\sessionagent-*.log"
 }
 Write-Host "    running"

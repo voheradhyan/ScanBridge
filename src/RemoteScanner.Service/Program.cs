@@ -35,11 +35,15 @@ public sealed class ScannerService : ServiceBase
         CommonLog.Initialize("service", useEventLog: true);
         AppPaths.EnsureDirectories();
 
-        string agentPath = Path.Combine(AppContext.BaseDirectory, "RemoteScanner.SessionAgent.exe");
+        // The agent is this same executable in another role, so there is no second file to
+        // find and no way for the two to be different builds.
+        string agentPath = Environment.ProcessPath
+            ?? Path.Combine(AppContext.BaseDirectory, "RemoteScanner.Service.exe");
+
         if (!File.Exists(agentPath))
         {
-            CommonLog.Logger.Fatal("Session agent not found at {Path}. The installation is incomplete.", agentPath);
-            throw new FileNotFoundException("RemoteScanner.SessionAgent.exe is missing.", agentPath);
+            CommonLog.Logger.Fatal("Cannot locate this executable at {Path}.", agentPath);
+            throw new FileNotFoundException("The server executable could not be located.", agentPath);
         }
 
         _launcher = new SessionLauncher(agentPath);
@@ -93,7 +97,31 @@ public sealed class ScannerService : ServiceBase
 
     protected override void OnShutdown() => OnStop();
 
-    public static void Main(string[] args)
+    /// <summary>
+    /// One executable, several roles, chosen by the first argument.
+    ///
+    /// The service and the per-session agent are separate *processes* because they have to be —
+    /// one runs as LocalSystem in session 0, the other as the user inside their session — but
+    /// there is no reason for them to be separate *files*. Shipping one means an installation
+    /// cannot end up with mismatched halves, and it is one thing to copy to a server.
+    /// </summary>
+    public static async Task<int> Main(string[] args)
+    {
+        if (args.Length > 0 &&
+            args[0].Equals("--session-agent", StringComparison.OrdinalIgnoreCase))
+        {
+            return await SessionAgent.Program.RunAsync(args[1..]).ConfigureAwait(false);
+        }
+
+        // Pairing is a setup step the user runs in their own session, not a mode of anything.
+        if (args.Length > 0 && args[0].StartsWith("--pair", StringComparison.OrdinalIgnoreCase))
+            return await SessionAgent.Program.RunAsync(args).ConfigureAwait(false);
+
+        RunService(args);
+        return 0;
+    }
+
+    private static void RunService(string[] args)
     {
         // Running interactively is how the service is debugged on a real server: it does the
         // same work in the foreground so its log output can be watched live.

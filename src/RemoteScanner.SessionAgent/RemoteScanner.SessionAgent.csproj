@@ -1,7 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
+    <!-- A library, not a program of its own.
+
+         The session agent still runs as its own process. It has to: in the user's session and
+         under the user's token. But that process is now the server executable started with the
+         session-agent switch. One file to install instead of two, and one file whose halves
+         can never be different builds. -->
+    <OutputType>Library</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -9,7 +15,6 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <AssemblyName>RemoteScanner.SessionAgent</AssemblyName>
     <RootNamespace>RemoteScanner.SessionAgent</RootNamespace>
-    <!-- Console host with no window: the user never sees this process. -->
     <PlatformTarget>x64</PlatformTarget>
     <InvariantGlobalization>true</InvariantGlobalization>
   </PropertyGroup>

@@ -17,7 +17,13 @@ namespace RemoteScanner.SessionAgent;
 [SupportedOSPlatform("windows")]
 public static class Program
 {
-    public static async Task<int> Main(string[] args)
+    /// <summary>
+    /// Entry point for the session-agent role, invoked as
+    /// <c>RemoteScanner.Service.exe --session-agent</c>. Not a Main: this lives in the server
+    /// executable alongside the service, so an installation cannot end up with two halves of
+    /// different vintages.
+    /// </summary>
+    public static async Task<int> RunAsync(string[] args)
     {
         Log.Initialize("sessionagent");
         var log = Log.Logger;

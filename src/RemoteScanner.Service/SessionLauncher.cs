@@ -122,7 +122,8 @@ public sealed class SessionLauncher : IDisposable
                         lpDesktop = @"winsta0\default",
                     };
 
-                    string commandLine = $"\"{_agentPath}\"";
+                    // Same executable, session-agent role.
+                    string commandLine = $"\"{_agentPath}\" --session-agent";
 
                     if (!CreateProcessAsUserW(
                             primary, null, commandLine, IntPtr.Zero, IntPtr.Zero, false,

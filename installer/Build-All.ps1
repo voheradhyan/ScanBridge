@@ -9,7 +9,7 @@
       build\client\x64\        ScanHost x64, DvcPlugin x64
       build\client\x86\        ScanHost x86, DvcPlugin x86
 
-      build\server\            RemoteScanner.Service.exe, RemoteScanner.SessionAgent.exe
+      build\server\            RemoteScanner.Service.exe (service, session agent, pairing)
       build\server\x64\        RemoteScanner.ds (64-bit)
       build\server\x86\        RemoteScanner.ds (32-bit)
 
@@ -148,16 +148,14 @@ Write-Step "Publishing the server payload"
 Remove-Item $serverOut -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force -Path $serverOut, "$serverOut\x64", "$serverOut\x86" | Out-Null
 
-# Also self-contained: a production RDS host often has no .NET installed and a change
-# request to add one is slower than shipping the runtime alongside. Both publish into the
-# same folder and share one copy of the runtime files.
+# Self-contained: a production RDS host often has no .NET installed, and a change request to
+# add one takes longer than shipping the runtime alongside.
+#
+# One publish, not two. The session agent is a role of this executable rather than a program of
+# its own, so there is no second binary to keep in step.
 & dotnet publish (Join-Path $repoRoot 'src\RemoteScanner.Service\RemoteScanner.Service.csproj') `
     -c $Configuration -r win-x64 --self-contained true -o $serverOut --nologo -v quiet
-Invoke-Checked "Service publish"
-
-& dotnet publish (Join-Path $repoRoot 'src\RemoteScanner.SessionAgent\RemoteScanner.SessionAgent.csproj') `
-    -c $Configuration -r win-x64 --self-contained true -o $serverOut --nologo -v quiet
-Invoke-Checked "SessionAgent publish"
+Invoke-Checked "Server publish"
 
 foreach ($arch in @('x64', 'x86')) {
     $dataSource = Join-Path $repoRoot "build\$arch\RemoteScanner.ds"

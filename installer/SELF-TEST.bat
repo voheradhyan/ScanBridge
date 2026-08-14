@@ -110,10 +110,15 @@ echo.
 echo   [4/5] Starting the session agent in loopback mode...
 
 REM Any agent left over from a previous run would hold the pipe this one needs.
-taskkill /f /im RemoteScanner.SessionAgent.exe >nul 2>&1
+REM
+REM Matched on the command line, not the image name: the session agent is now a role of
+REM RemoteScanner.Service.exe, and killing every process with that name would stop an installed
+REM service too — on a machine that is both a client and a server, that is somebody else's
+REM scanning session.
+call :STOP_AGENTS
 
 start "RemoteScanner session agent (loopback)" /min ^
-    "%HERE%RemoteScanner.SessionAgent.exe" --loopback
+    "%HERE%RemoteScanner.Service.exe" --session-agent --loopback
 
 REM Give it time to start and connect to the tray app before the driver looks for it.
 REM Polled rather than a fixed wait: a cold start on a loaded machine can take several
@@ -122,8 +127,7 @@ set "AGENT_UP="
 for /l %%N in (1,1,15) do (
     if not defined AGENT_UP (
         ping -n 2 127.0.0.1 >nul
-        tasklist /fi "imagename eq RemoteScanner.SessionAgent.exe" /fo csv /nh 2>nul | find /i "RemoteScanner.SessionAgent" >nul
-        if not errorlevel 1 set "AGENT_UP=1"
+        call :AGENT_RUNNING && set "AGENT_UP=1"
     )
 )
 
@@ -162,7 +166,7 @@ if "%RESULT%"=="0" (
     set "RESULT=!errorlevel!"
 )
 
-taskkill /f /im RemoteScanner.SessionAgent.exe >nul 2>&1
+call :STOP_AGENTS
 
 echo.
 echo   ============================================
@@ -195,3 +199,19 @@ if "%RESULT%"=="0" (
 echo.
 pause
 exit /b %RESULT%
+
+REM ---------------------------------------------------------------------------
+REM  Helpers. Both match on the command line rather than the image name, because
+REM  the session agent shares its executable with the server service and killing
+REM  by name would stop a real one.
+REM ---------------------------------------------------------------------------
+
+:STOP_AGENTS
+powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+    "Get-CimInstance Win32_Process -Filter \"Name='RemoteScanner.Service.exe'\" | Where-Object { $_.CommandLine -like '*--session-agent*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }" >nul 2>&1
+exit /b 0
+
+:AGENT_RUNNING
+powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+    "$p = Get-CimInstance Win32_Process -Filter \"Name='RemoteScanner.Service.exe'\" | Where-Object { $_.CommandLine -like '*--session-agent*' }; if ($p) { exit 0 } else { exit 1 }" >nul 2>&1
+exit /b %errorlevel%

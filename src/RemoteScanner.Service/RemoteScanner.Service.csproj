@@ -21,6 +21,8 @@
   <ItemGroup>
     <ProjectReference Include="..\RemoteScanner.Common\RemoteScanner.Common.csproj" />
     <ProjectReference Include="..\RemoteScanner.Rdp\RemoteScanner.Rdp.csproj" />
+    <!-- The session-agent role, hosted by this executable rather than shipped as its own. -->
+    <ProjectReference Include="..\RemoteScanner.SessionAgent\RemoteScanner.SessionAgent.csproj" />
   </ItemGroup>
 
 </Project>
