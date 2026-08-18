@@ -61,9 +61,17 @@ appointed representative at an online or offline event.
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
 reported to the community leaders responsible for enforcement at:
 
-> **[PLACEHOLDER — contact address not yet set. The author (Dhyan Vohera) needs to fill this
-> in before this document is considered complete — e.g. an email address or a GitHub contact
-> method. Until then, use GitHub's abuse reporting or contact GitHub Support directly.]**
+> The maintainer, **[@voheradhyan](https://github.com/voheradhyan)**.
+>
+> For anything you do not want visible in a public issue — which is most conduct reports —
+> use **Security → Advisories → Report a vulnerability** on this repository. That form is
+> labelled for security, but it is the only private, maintainer-only channel GitHub gives a
+> project this size. Say in the first line that it is a conduct report; it will be handled as
+> one and not published as an advisory.
+>
+> A report about the maintainer should go to **GitHub Support** instead, which can act
+> without the maintainer's cooperation. A code of conduct whose only contact is the person
+> being reported is not a code of conduct.
 
 All complaints will be reviewed and investigated promptly and fairly.
 
