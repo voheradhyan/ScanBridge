@@ -21,21 +21,51 @@ using System.IO;
 
 internal static class IconGen
 {
-    // Must match assets/scanbridge.svg and assets/scanbridge-mono.svg. Steel (not a
-    // deeper navy) was chosen specifically here: this file cannot adapt itself to a
-    // light or dark tray the way the SVG can with prefers-color-scheme, so its ink
-    // colour has to hold a workable contrast ratio against both at once. See
-    // assets/README.md for the numbers.
+    // Must match assets/scanbridge.svg. The mark is two colours: white ink on a navy tile,
+    // and the tile is why it works anywhere. An .ico cannot adapt to a light or dark tray the
+    // way an SVG in a browser can, so a bare glyph would have to hold contrast against a white
+    // taskbar, a near-black one and an accent colour with one baked-in ink. A tile does not:
+    // it brings its own background, and the only ratio that matters is ink against tile, which
+    // is fixed at 8.67:1. See assets/README.md for the measurements.
     private static readonly Color Navy = Color.FromArgb(0x21, 0x4A, 0x8C);  // tile
-    private static readonly Color Steel = Color.FromArgb(0x4A, 0x6F, 0xA5); // Ink Steel
-    private static readonly Color Teal = Color.FromArgb(0x2F, 0xD3, 0xC7);  // Span Teal
+    private static readonly Color Teal = Color.FromArgb(0x2F, 0xD3, 0xC7);  // Span Teal, social card only
 
     private static readonly int[] Sizes = { 16, 24, 32, 48, 64, 128, 256 };
 
     private static int Main(string[] args)
     {
+        // Second job, same drawing. GitHub's "social preview" is the only image a repository
+        // owns — a repository has no icon of its own, and under a personal account the picture
+        // beside it in a listing is the owner's avatar. The preview is what appears when the
+        // link is pasted into Slack, X or LinkedIn, and it is a fixed 1280x640.
+        //
+        // It lives here rather than in a tool of its own so that it calls the same RenderMark
+        // as every .ico frame. A social card drawn separately is a second copy of the artwork
+        // that nobody remembers to update, and it would be the copy the world sees first.
+        if (args.Length > 0 && args[0] == "--social")
+            return WriteSocialCard(args.Length > 1 ? args[1] : "social-preview.png");
+
         string outPath = args.Length > 0 ? args[0] : "scanbridge.ico";
         string pngDumpDir = args.Length > 1 ? args[1] : "";
+
+        // `dotnet run --nologo -- ...` forwards --nologo to the program rather than consuming
+        // it, so it arrives here as args[0] and used to be taken as the output path. That
+        // silently produced a 10 KB file literally named "--nologo", which was committed to
+        // this repository and sat there unnoticed until somebody listed the directory.
+        //
+        // Both arguments, not just the first. The same mistyped command also left a directory
+        // called "--social" here full of PNG frames, because --nologo had shifted everything
+        // along by one and the dump-directory argument caught the next flag.
+        foreach (var (value, what) in new[] { (outPath, "file"), (pngDumpDir, "directory") })
+        {
+            if (!value.StartsWith("--", StringComparison.Ordinal)) continue;
+
+            Console.Error.WriteLine($"refusing to create a {what} named \"{value}\" - that looks like a flag, not a path.");
+            Console.Error.WriteLine("usage: icogen [<out.ico> [<png-dump-dir>]]");
+            Console.Error.WriteLine("       icogen --social [<out.png>]");
+            Console.Error.WriteLine("note:  `dotnet run --nologo -- ...` forwards --nologo to this program; drop it.");
+            return 2;
+        }
 
         var frames = new List<(int size, byte[] png)>();
 
@@ -82,6 +112,125 @@ internal static class IconGen
         Console.WriteLine();
 
         return VerifyIco(outPath, frames.Count) ? 0 : 1;
+    }
+
+    /// <summary>
+    /// The 1280x640 card GitHub shows when the repository is linked somewhere else.
+    /// </summary>
+    private static int WriteSocialCard(string path)
+    {
+        const int W = 1280, H = 640, Mark = 300;
+        const float LeftMargin = 110f, Gutter = 70f, RightMargin = 96f, RuleGap = 34f, LineGap = 14f;
+
+        // A deeper navy than the tile, so the tile reads as a tile rather than dissolving into
+        // the background. The mark carries its own ground on purpose (see RenderMark); drawing
+        // it on its own colour would undo that.
+        var ground = Color.FromArgb(0x0F, 0x25, 0x45);
+        var muted = Color.FromArgb(0x9D, 0xB8, 0xE0);
+
+        using var bmp = new Bitmap(W, H, PixelFormat.Format32bppArgb);
+        using var g = Graphics.FromImage(bmp);
+        g.SmoothingMode = SmoothingMode.AntiAlias;
+        g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
+        g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+        g.Clear(ground);
+
+        float markX = LeftMargin, markY = (H - Mark) / 2f;
+        using (var mark = RenderMark(Mark))
+            g.DrawImage(mark, markX, markY, Mark, Mark);
+
+        float textX = markX + Mark + Gutter;
+        float available = W - textX - RightMargin;
+
+        // Segoe UI Semibold is its own family on Windows, not a style of Segoe UI, so asking
+        // for it by name is the only way to get it. If it is missing GDI+ substitutes silently
+        // and the card still renders, just heavier.
+        using var title = Fit(g, "ScanBridge", available, 82f, "Segoe UI Semibold", FontStyle.Regular);
+        string[] lines = { "Scanner redirection over RDP", "Your scanner, inside the Remote Desktop session." };
+
+        // One body size for both lines, chosen by the longer one. The first attempt set 34px by
+        // eye; the second line came to 735px against 674px of usable width and ran off the
+        // right edge of the card. Measuring is the fix, not a smaller number picked again by
+        // eye — the strings here will change.
+        float bodySize = 34f;
+        foreach (var line in lines)
+        {
+            using var probe = Fit(g, line, available, bodySize, "Segoe UI", FontStyle.Regular);
+            bodySize = Math.Min(bodySize, probe.Size);
+        }
+        using var body = new Font("Segoe UI", bodySize, FontStyle.Regular, GraphicsUnit.Pixel);
+
+        float titleH = g.MeasureString("ScanBridge", title).Height;
+        float lineH = g.MeasureString(lines[0], body).Height;
+        float blockH = titleH + RuleGap + 6f + RuleGap + lineH + LineGap + lineH;
+
+        // Centred against the mark rather than the canvas, so the two read as one object. They
+        // are the same height here, but they have not always been.
+        float y = markY + (Mark - blockH) / 2f;
+
+        using var white = new SolidBrush(Color.White);
+        using var dim = new SolidBrush(muted);
+        using var accent = new SolidBrush(Teal);
+
+        g.DrawString("ScanBridge", title, white, textX, y);
+        y += titleH + RuleGap;
+
+        // A short teal rule between the name and what it does. The palette carries a Span
+        // colour; this is the one place at this size where it can be used without competing
+        // with the mark.
+        g.FillRectangle(accent, textX + 4f, y, 96f, 6f);
+        y += 6f + RuleGap;
+
+        foreach (var line in lines)
+        {
+            g.DrawString(line, body, dim, textX, y);
+            y += lineH + LineGap;
+        }
+
+        bmp.Save(path, ImageFormat.Png);
+
+        var info = new FileInfo(path);
+        Console.WriteLine($"wrote {path}  {W}x{H}, {info.Length / 1024} KB");
+        Console.WriteLine($"  title {title.Size:0.#}px, body {bodySize:0.#}px, text width available {available:0}px");
+
+        // Nothing may touch the edge: GitHub scales the card down in some surfaces and crops it
+        // in others, and text that ends at 1280 ends mid-word in a Slack unfurl.
+        float widest = Math.Max(g.MeasureString("ScanBridge", title).Width,
+                                lines.Max(l => g.MeasureString(l, body).Width));
+        Console.WriteLine($"  widest line ends at {textX + widest:0}px of {W}");
+        if (textX + widest > W - RightMargin + 1f)
+        {
+            Console.WriteLine("*** text overruns the right margin");
+            return 1;
+        }
+
+        // GitHub rejects anything over 1 MB, and does it after the upload with a message that
+        // does not say the size. Fail here instead, where the number is visible.
+        if (info.Length > 1_000_000)
+        {
+            Console.WriteLine("*** over GitHub's 1 MB limit for a social preview");
+            return 1;
+        }
+        return 0;
+    }
+
+    /// <summary>
+    /// The largest font at or below <paramref name="size"/> whose rendering of
+    /// <paramref name="text"/> fits <paramref name="available"/> pixels. Falls back to plain
+    /// Segoe UI if the requested family is not installed.
+    /// </summary>
+    private static Font Fit(Graphics g, string text, float available, float size, string family, FontStyle style)
+    {
+        for (float s = size; s > 8f; s -= 1f)
+        {
+            Font f;
+            try { using var ff = new FontFamily(family); f = new Font(ff, s, style, GraphicsUnit.Pixel); }
+            catch (ArgumentException) { f = new Font("Segoe UI", s, style, GraphicsUnit.Pixel); }
+
+            if (g.MeasureString(text, f).Width <= available) return f;
+            f.Dispose();
+        }
+        return new Font("Segoe UI", 8f, style, GraphicsUnit.Pixel);
     }
 
     private static Bitmap RenderMark(int size)

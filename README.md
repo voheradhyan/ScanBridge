@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/scanbridge.svg" alt="" width="112" height="112">
+</p>
+
 # ScanBridge
 
 Scanner redirection over RDP. A scanner physically attached to your Windows PC becomes usable
