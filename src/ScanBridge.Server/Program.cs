@@ -201,6 +201,8 @@ public sealed class ScannerService : ServiceBase
               --pair=<code>               pair this session with a PC, for the direct
                                           connection used when the RDP channel cannot carry data
               --console                   run the service in the foreground, for diagnostics
+              --extract <folder>          write out the carried files and their hashes,
+                                          installing nothing and needing no privileges
               --help                      this text
 
             Installing and removing need administrator rights. Pairing does not — it is done by
