@@ -14,6 +14,11 @@
     <Platforms>x64;x86</Platforms>
     <RuntimeIdentifiers>win-x64;win-x86</RuntimeIdentifiers>
     <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- Same reason as the server, one step further down: the 32-bit host is a separate
+         process, so it is what a user sees in Task Manager while a scan is running. An
+         unnamed, unmarked process appearing during a scan is exactly what someone checks
+         Task Manager to find. -->
+    <ApplicationIcon>..\..\assets\scanbridge.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>

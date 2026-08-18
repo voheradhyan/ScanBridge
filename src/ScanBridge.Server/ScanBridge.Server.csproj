@@ -12,6 +12,13 @@
     <PlatformTarget>x64</PlatformTarget>
     <InvariantGlobalization>true</InvariantGlobalization>
     <AssemblyTitle>ScanBridge Server</AssemblyTitle>
+    <!-- The mark, on the file itself. Not decoration: this executable is what an
+         administrator downloads, what UAC raises a prompt for, and what appears in Services
+         and Task Manager. The default .NET apphost icon there says "some console program",
+         which is the wrong first impression for something asking for administrator rights.
+         There is no runtime need for the icon as a resource the way the client has one for
+         its tray, so this sets only the file's own icon. -->
+    <ApplicationIcon>..\..\assets\scanbridge.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>

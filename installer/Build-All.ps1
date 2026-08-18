@@ -48,6 +48,22 @@ function Invoke-Checked($description) {
 # A freshly written file in a synced folder is sometimes held for a moment by whatever indexes
 # it. Failing a whole build over that, having done nothing wrong, is not acceptable; neither is
 # retrying forever and hiding a genuine lock.
+function Find-ByteRun([byte[]] $haystack, [byte[]] $needle) {
+    # Substring search over raw bytes. PowerShell has no built-in for this, and converting
+    # 110 MB of executable to a string to use one would be worse than the loop.
+    $first = $needle[0]
+    $limit = $haystack.Length - $needle.Length
+    for ($i = 0; $i -le $limit; $i++) {
+        if ($haystack[$i] -ne $first) { continue }
+        $matched = $true
+        for ($j = 1; $j -lt $needle.Length; $j++) {
+            if ($haystack[$i + $j] -ne $needle[$j]) { $matched = $false; break }
+        }
+        if ($matched) { return $true }
+    }
+    return $false
+}
+
 function Copy-WithRetry($source, $destination, $attempts = 5) {
     for ($i = 1; $i -le $attempts; $i++) {
         try {
@@ -316,6 +332,70 @@ foreach ($installer in @('ScanBridge-Server.exe', 'ScanBridge-Client.exe')) {
     $carried = @(Get-ChildItem $probe -Recurse -File)
     Write-Host "    $installer : $($carried.Count) file(s)"
     Remove-Item $probe -Recurse -Force -ErrorAction SilentlyContinue
+}
+
+# ---------------------------------------------------------------- icon on the binaries
+
+# Does each shipped executable actually carry the mark?
+#
+# This is a gate rather than a glance because the answer was silently "no" for one of them and
+# nothing noticed. ScanBridge.Server and ScanBridge.ScanHost had no ApplicationIcon at all, so
+# they shipped with the default .NET apphost icon, through a full green build and a tagged
+# release candidate. A person spotted it by looking at the file.
+#
+# The obvious check does not work. Icon.ExtractAssociatedIcon and the shell hand back the
+# default icon when a PE has no icon resource, rather than failing, so an executable with the
+# right icon and one with no icon at all are indistinguishable through that API - both were
+# reporting a perfectly healthy "32x32". So this reads the frames out of scanbridge.ico and
+# looks for those exact bytes in the file: .NET stores each frame as its own RT_ICON resource
+# with the pixel data unchanged, and a single-file apphost does not compress Win32 resources,
+# so a frame that is there is there verbatim.
+
+Write-Step "Checking the mark is on the binaries"
+
+$icoPath = Join-Path $repoRoot 'assets\scanbridge.ico'
+if (-not (Test-Path $icoPath)) { throw "assets\scanbridge.ico is missing." }
+
+$ico = [IO.File]::ReadAllBytes($icoPath)
+if ([BitConverter]::ToUInt16($ico, 0) -ne 0 -or [BitConverter]::ToUInt16($ico, 2) -ne 1) {
+    throw "assets\scanbridge.ico is not a valid icon file."
+}
+
+$frames = @()
+$frameCount = [BitConverter]::ToUInt16($ico, 4)
+for ($i = 0; $i -lt $frameCount; $i++) {
+    $entry = 6 + $i * 16
+    $width = $ico[$entry]; if ($width -eq 0) { $width = 256 }
+    $size = [BitConverter]::ToUInt32($ico, $entry + 8)
+    $offset = [BitConverter]::ToUInt32($ico, $entry + 12)
+    $frames += [pscustomobject]@{
+        Width = $width
+        Bytes = $ico[$offset..($offset + $size - 1)]
+    }
+}
+
+$iconTargets = @(
+    (Join-Path $distOut 'ScanBridge-Server.exe'),
+    (Join-Path $distOut 'ScanBridge-Client.exe'),
+    (Join-Path $payloadOut 'ScanBridge.ScanHost.exe')
+)
+
+foreach ($target in $iconTargets) {
+    if (-not (Test-Path $target)) { throw "expected $target to exist by now." }
+
+    $bytes = [IO.File]::ReadAllBytes($target)
+    $missing = @()
+    foreach ($frame in $frames) {
+        # IndexOf over the raw bytes. A frame is a few KB and the largest file here is ~110 MB,
+        # so this is a second or two per binary and needs no PE parser.
+        if (-not (Find-ByteRun $bytes $frame.Bytes)) { $missing += $frame.Width }
+    }
+
+    $name = Split-Path $target -Leaf
+    if ($missing.Count -gt 0) {
+        throw "$name is missing icon frame(s): $($missing -join ', ')px. Check <ApplicationIcon> in its .csproj."
+    }
+    Write-Host "    $name : all $($frames.Count) frames present"
 }
 
 # ------------------------------------------------------------------ verification
