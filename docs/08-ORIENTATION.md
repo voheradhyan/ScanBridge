@@ -172,7 +172,10 @@ turns a copy, an install and a sign-out per attempt into seconds.
   needs the comment.
 - **A test that cannot fail is worth nothing.** `dsmprobe`'s post-transfer checks include a
   control case that *must* still return `TWCC_CAPUNSUPPORTED`, because otherwise a passing run
-  would prove only that the probe cannot see failures.
+  would prove only that the probe cannot see failures. The same rule caught a fault in the CI
+  workflow before it ever ran: two commands under one `run:` block are gated only by the last
+  one's exit code, so `pipetest` x64 could fail and the build stay green. One command per step
+  now, for that reason.
 - **Measure, do not assert.** Every claim in these documents that could be checked, was. Where
   something is believed rather than measured, it says so.
 - Do not ship a theory. Reproduce, fix, then re-run the gates.

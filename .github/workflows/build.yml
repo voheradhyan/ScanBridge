@@ -33,6 +33,12 @@ on:
 # both on a developer machine, and treat a green run of this workflow as "compiles, and its
 # hardware-free tests pass" — nothing about scanning itself, and nothing about whether a real
 # TWAIN application would ever see the result.
+#
+# One rule of construction, learned the hard way and worth stating because it is invisible in
+# a passing run: every step below runs exactly one command. Two commands under one `run:` do
+# not both gate the step — the runner takes the exit code of the last line, so a failure in
+# the first is thrown away. Measured, not assumed: a two-line `shell: cmd` step whose first
+# program exits 7 and whose second exits 0 reports success. Splitting them is the whole fix.
 
 jobs:
   managed:
@@ -57,9 +63,18 @@ jobs:
           dotnet test tests\Unit\ScanBridge.Tests.Unit.csproj -c Release --no-build
           --logger "console;verbosity=normal"
 
-      - name: Build and run the TWAIN constant checker (does not verify anything here)
-        # This is installer\Build-All.ps1's first and most important step, reproduced only
-        # far enough to prove the checker itself still builds and runs. It cannot do its actual
+      - name: Build the TWAIN constant checker
+        # No --no-restore here, unlike every other managed step. ConstantCheck is deliberately
+        # not a member of ScanBridge.sln — it is a build gate, not a component, and nothing
+        # ships it — so the solution restore above does not reach it, and it has a
+        # PackageReference of its own (System.Reflection.MetadataLoadContext). Building it
+        # with --no-restore fails with NETSDK1004, "Assets file ... project.assets.json not
+        # found", on a clean checkout. That is what this job is: a clean checkout.
+        run: dotnet build installer\ConstantCheck\ConstantCheck.csproj -c Release
+
+      - name: Run the TWAIN constant checker (does not verify anything here)
+        # This is installer\Build-All.ps1's first and most important step, reproduced only far
+        # enough to prove the checker itself still builds and runs. It cannot do its actual
         # job — comparing rs_twain.h and TwainTypes.cs against a real TWAIN library — because
         # NAPS2 is not installed on this runner. ConstantCheck detects that itself and exits 0
         # with a warning rather than failing; see the "Exit codes" note at the top of
@@ -67,9 +82,7 @@ jobs:
         # this whole repository cannot catch by testing itself (the DSM forwards DG/DAT/MSG
         # values untouched), which is exactly why this step existing here is not the same
         # thing as this gate having run.
-        run: |
-          dotnet build installer\ConstantCheck\ConstantCheck.csproj -c Release --no-restore
-          dotnet installer\ConstantCheck\bin\Release\net8.0\ScanBridge.ConstantCheck.dll ${{ github.workspace }}
+        run: dotnet installer\ConstantCheck\bin\Release\net8.0\ScanBridge.ConstantCheck.dll ${{ github.workspace }}
 
   native:
     name: Native build (x86 + x64) and transport test
@@ -91,14 +104,20 @@ jobs:
         shell: cmd
         run: native\build.cmd both
 
-      - name: Run the native transport test (no scanner or hardware needed)
-        # pipetest exercises rs::PipeClient the way the DVC plugin actually uses it (a reader
-        # thread and a writer thread sharing one pipe handle) against two local named pipes —
-        # nothing external. It is the test that catches a specific overlapped-I/O deadlock that
-        # made scanning over RDP silently impossible while every managed test still passed; see
-        # the comment at the top of native\tools\pipetest.cpp. It is not a substitute for
-        # SELF-TEST.bat or dsmprobe against real hardware — see CONTRIBUTING.md.
+      # pipetest exercises rs::PipeClient the way the DVC plugin actually uses it (a reader
+      # thread and a writer thread sharing one pipe handle) against two local named pipes —
+      # nothing external. It is the test that catches a specific overlapped-I/O deadlock that
+      # made scanning over RDP silently impossible while every managed test still passed; see
+      # the comment at the top of native\tools\pipetest.cpp. It is not a substitute for
+      # SELF-TEST.bat or dsmprobe against real hardware — see CONTRIBUTING.md.
+      #
+      # One bitness per step. Both used to share a `run:` block, which meant an x64 failure was
+      # discarded whenever x86 passed — half of the most important test here could not fail the
+      # build. See the note at the top of this file.
+      - name: Run the native transport test, x64 (no scanner or hardware needed)
         shell: cmd
-        run: |
-          build\x64\pipetest.exe
-          build\x86\pipetest.exe
+        run: build\x64\pipetest.exe
+
+      - name: Run the native transport test, x86 (no scanner or hardware needed)
+        shell: cmd
+        run: build\x86\pipetest.exe
