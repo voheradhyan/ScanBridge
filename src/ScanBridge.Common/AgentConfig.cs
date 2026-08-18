@@ -6,7 +6,7 @@ using ScanBridge.Protocol;
 namespace ScanBridge.Common;
 
 /// <summary>
-/// User-visible settings, persisted as JSON under %ProgramData%\ScanBridge\config.json.
+/// User-visible settings, persisted as JSON under %LOCALAPPDATA%\ScanBridge\config.json.
 ///
 /// These are defaults the agent applies when a remote application does not ask for something
 /// specific. Anything the application *does* negotiate through TWAIN wins — a scanning app
@@ -53,7 +53,22 @@ public sealed class AgentConfig
     {
         try
         {
-            if (!File.Exists(AppPaths.ConfigFile)) return new AgentConfig();
+            if (!File.Exists(AppPaths.ConfigFile))
+            {
+                // Settings moved out of ProgramData and into the user's profile on 18 August
+                // 2026. An installation from before that has its file in the old place; read it
+                // once and write it back to the new one, so nobody silently loses the scanner
+                // they had chosen. The old file is left alone rather than deleted - it may
+                // belong to another user on a Session Host, and this process may not be able to
+                // remove it anyway.
+                if (!File.Exists(AppPaths.LegacyConfigFile)) return new AgentConfig();
+
+                var migrated = JsonSerializer.Deserialize<AgentConfig>(
+                    File.ReadAllText(AppPaths.LegacyConfigFile), Options) ?? new AgentConfig();
+                migrated.Save();
+                return migrated;
+            }
+
             string json = File.ReadAllText(AppPaths.ConfigFile);
             return JsonSerializer.Deserialize<AgentConfig>(json, Options) ?? new AgentConfig();
         }
