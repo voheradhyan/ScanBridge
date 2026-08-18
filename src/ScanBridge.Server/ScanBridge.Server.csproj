@@ -11,6 +11,7 @@
     <RootNamespace>ScanBridge.Server</RootNamespace>
     <PlatformTarget>x64</PlatformTarget>
     <InvariantGlobalization>true</InvariantGlobalization>
+    <AssemblyTitle>ScanBridge Server</AssemblyTitle>
   </PropertyGroup>
 
   <ItemGroup>

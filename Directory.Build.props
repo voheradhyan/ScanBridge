@@ -1,0 +1,37 @@
+<Project>
+
+  <!--
+    Version and identity for every managed project in the tree, set in one place.
+
+    This is not cosmetic. Both shipped executables are unsigned and are downloaded from the
+    internet, so the first thing a careful administrator does is right-click, Properties,
+    Details. Left to the SDK defaults that tab reads:
+
+        File description   ScanBridge.Client
+        Company            ScanBridge.Client
+        Product            ScanBridge.Client
+
+    A company field naming an assembly looks like something a script assembled rather than
+    something a person published. The same fields appear in Task Manager, in the UAC prompt
+    the server installer raises, and in most antivirus consoles.
+
+    (Note for anyone editing this comment: XML forbids a double hyphen inside a comment, so
+    command-line switches cannot be written here in their real form. The first draft said
+    "the UAC prompt raised by ScanBridge-Server.exe" followed by the install switch, and
+    every project in the tree failed to load with MSB4024.)
+
+    InformationalVersion is left to the SDK, which appends "+<commit sha>" from the git
+    checkout. That is worth keeping: a released binary states in its own properties which
+    commit produced it, so a bug report carrying a screenshot of that tab is traceable to a
+    tree without asking the reporter anything.
+  -->
+
+  <PropertyGroup>
+    <Version>1.0.0</Version>
+    <Product>ScanBridge</Product>
+    <Company>Dhyan Vohera</Company>
+    <Authors>Dhyan Vohera</Authors>
+    <Copyright>Copyright 2026 Dhyan Vohera</Copyright>
+  </PropertyGroup>
+
+</Project>
