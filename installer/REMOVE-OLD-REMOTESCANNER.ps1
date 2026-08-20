@@ -118,23 +118,38 @@ if (-not $Remove) {
 
 Write-Host "Removing" -ForegroundColor Cyan
 
-foreach ($p in $processes) {
-    try { Stop-Process -Id $p.Id -Force -ErrorAction Stop; Write-Host "  stopped $($p.ProcessName)" }
-    catch { $blocked += "process $($p.ProcessName): $($_.Exception.Message)" }
-}
-
+# The service goes first, before anything is killed. Killing its process instead just hands
+# the job to the SCM, which restarts it - and the service spawns a session agent per RDP
+# session, so those come back too, and while they are alive they keep the .ds files mapped
+# and the TWAIN folders refuse to delete. Measured on a real host: service plus three
+# session agents, all of it reappearing.
 if ($service) {
     if (-not $elevated) { $blocked += "service RemoteScanner: needs an elevated window" }
     else {
         try {
-            if ($service.Status -ne 'Stopped') {
-                Stop-Service -Name 'RemoteScanner' -Force
-                $service.WaitForStatus('Stopped', [TimeSpan]::FromSeconds(30))
+            # Re-queried rather than reusing the object captured during the scan, whose Status
+            # is a snapshot from before any of this ran.
+            $live = Get-Service -Name 'RemoteScanner' -ErrorAction SilentlyContinue
+            if ($live -and $live.Status -ne 'Stopped') {
+                Stop-Service -Name 'RemoteScanner' -Force -ErrorAction SilentlyContinue
+                try { $live.WaitForStatus('Stopped', [TimeSpan]::FromSeconds(30)) } catch { }
             }
+
+            # Outside the stop, deliberately. A service that will not stop cleanly must still
+            # be deregistered, or the next reboot brings the whole thing back.
             & sc.exe delete RemoteScanner | Out-Null
             Write-Host "  removed the service"
         } catch { $blocked += "service RemoteScanner: $($_.Exception.Message)" }
     }
+}
+
+# Now whatever is still running: session agents the service will no longer respawn, and a
+# service process that ignored the stop. Re-enumerated, because the list from the scan is
+# minutes old by this point and the service may have replaced its children since.
+foreach ($p in @(Get-Process -ErrorAction SilentlyContinue |
+                 Where-Object { $_.ProcessName -like 'RemoteScanner*' })) {
+    try { Stop-Process -Id $p.Id -Force -ErrorAction Stop; Write-Host "  stopped $($p.ProcessName)" }
+    catch { $blocked += "process $($p.ProcessName): $($_.Exception.Message)" }
 }
 
 foreach ($item in $found | Where-Object { $_.What -like '*folder*' -or $_.What -like '*data source*' }) {
