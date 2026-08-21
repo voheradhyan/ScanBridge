@@ -25,6 +25,11 @@ namespace rs {
 
 /// A decoded page held as a bottom-up, 4-byte-row-aligned DIB body plus its geometry.
 /// Exactly one of these exists at a time, which is what keeps a 200-page job off the heap.
+class DecodeError : public std::runtime_error {
+public:
+    explicit DecodeError(const std::string& what) : std::runtime_error(what) {}
+};
+
 struct DecodedPage {
     int32_t width = 0;
     int32_t height = 0;
@@ -36,7 +41,44 @@ struct DecodedPage {
     int32_t pageNumber = 0;
     std::vector<uint8_t> bits;      // stride * height, bottom-up
 
-    int32_t stride() const { return ((width * bitsPerPixel + 31) / 32) * 4; }
+    /// Bytes per row, computed in int64_t.
+    ///
+    /// It used to be int32_t: ((width * bitsPerPixel + 31) / 32) * 4. At 24 bits per pixel any
+    /// width above roughly 89 million overflows that product - signed overflow, so undefined
+    /// behaviour before the wrong number is even used. Every caller then went on to check the
+    /// resulting size, which is the wrong order: the check ran after the arithmetic that had
+    /// already gone wrong, and a width chosen to wrap the product to a small positive value
+    /// sailed through it.
+    ///
+    /// int64_t cannot overflow for any width this type will accept, so the checks below are now
+    /// checking a number that means what it says.
+    int64_t stride() const {
+        return ((static_cast<int64_t>(width) * bitsPerPixel + 31) / 32) * 4;
+    }
+
+    /// Geometry a decoded page is allowed to have, whatever produced it.
+    ///
+    /// PageHeader::validate() bounds what a *peer* may declare on the wire, and for a long time
+    /// that looked like enough. It was not: it only guards the uncompressed path, because
+    /// fromRaw() is the only place those declared numbers become the page's geometry. Every real
+    /// scan is JPEG, and there the width and height come from the codec's own metadata - a JPEG
+    /// SOF marker or a PNG IHDR - which the wire format never sees and validate() never touches.
+    /// The bound has to live where the geometry is set, not where one of its two sources is
+    /// parsed.
+    void validate() const {
+        if (width <= 0 || height <= 0)
+            throw DecodeError("decoded page has a non-positive width or height");
+
+        // Matches PageHeader::validate(). A 600 dpi scan of A0 is about 28,000 pixels on its
+        // long edge, so this is generous and still finite.
+        constexpr int32_t kMaxPageEdge = 200000;
+        if (width > kMaxPageEdge || height > kMaxPageEdge)
+            throw DecodeError("decoded page has an implausible width or height");
+
+        constexpr int64_t kMaxImageBytes = 512LL * 1024 * 1024;
+        if (stride() * static_cast<int64_t>(height) > kMaxImageBytes)
+            throw DecodeError("decoded page size is implausible");
+    }
 
     size_t paletteEntries() const {
         switch (bitsPerPixel) {
@@ -50,11 +92,6 @@ struct DecodedPage {
     size_t dibSize() const {
         return sizeof(BITMAPINFOHEADER) + paletteEntries() * sizeof(RGBQUAD) + bits.size();
     }
-};
-
-class DecodeError : public std::runtime_error {
-public:
-    explicit DecodeError(const std::string& what) : std::runtime_error(what) {}
 };
 
 class PageDecoder {
@@ -107,6 +144,12 @@ public:
 
             UINT w = 0, h = 0;
             frame->GetSize(&w, &h);
+
+            // UINT to int32_t: a PNG IHDR may declare up to 2^31-1, which would arrive here
+            // negative. Rejected before it is stored rather than after it has been used.
+            if (w == 0 || h == 0 || w > static_cast<UINT>(INT32_MAX) || h > static_cast<UINT>(INT32_MAX))
+                throw DecodeError("the encoded page declares an implausible size");
+
             page.width = static_cast<int32_t>(w);
             page.height = static_cast<int32_t>(h);
 
@@ -136,6 +179,10 @@ public:
             hr = converter->Initialize(frame, destFormat, WICBitmapDitherTypeErrorDiffusion,
                                        nullptr, 0.0, WICBitmapPaletteTypeMedianCut);
             if (FAILED(hr)) throw DecodeError("WIC pixel format conversion unsupported");
+
+            // Now that bitsPerPixel is known, bound the whole geometry. This is the check that
+            // was missing: everything above this line came out of the image file itself.
+            page.validate();
 
             copyBottomUp(converter, page);
         }
@@ -199,7 +246,11 @@ private:
     /// WIC hands back top-down rows; DIBs with a positive biHeight are bottom-up, so the
     /// row order is reversed here once rather than at every transfer.
     static void copyBottomUp(IWICBitmapSource* source, DecodedPage& page) {
-        const int32_t stride = page.stride();
+        // page.validate() has already bounded these; recomputed in int64_t regardless, so this
+        // function is safe to call from anywhere rather than only from a caller that remembered.
+        page.validate();
+
+        const int64_t stride = page.stride();
         const size_t total = static_cast<size_t>(stride) * static_cast<size_t>(page.height);
         if (total == 0 || total > (512u * 1024u * 1024u))
             throw DecodeError("decoded page size is implausible");
@@ -212,7 +263,7 @@ private:
         page.bits.resize(total);
         for (int32_t y = 0; y < page.height; ++y) {
             memcpy(page.bits.data() + static_cast<size_t>(y) * stride,
-                   topDown.data() + static_cast<size_t>(page.height - 1 - y) * stride,
+                   topDown.data() + static_cast<size_t>(page.height - 1 - y) * static_cast<size_t>(stride),
                    static_cast<size_t>(stride));
         }
     }
@@ -232,6 +283,12 @@ private:
 
         if (header.pixelType != target)
             throw DecodeError("raw pages must already match the requested pixel type");
+
+        // Same bound as every other path. The numbers here came from a PageHeader that has
+        // already been validated on the wire, so this is belt and braces - but the whole reason
+        // this fix was needed is that one path was assumed covered by a check living somewhere
+        // else, and was not.
+        page.validate();
 
         const size_t expected = static_cast<size_t>(page.stride()) * static_cast<size_t>(page.height);
         if (encoded.size() < expected) throw DecodeError("raw page is shorter than its declared geometry");

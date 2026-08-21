@@ -215,10 +215,11 @@ void writeUncompressedTiff(Put&& put, const DecodedPage& page) {
 
     // DIB rows are bottom-up and padded; TIFF wants top-down and tight. 24bpp DIBs are BGR
     // while TIFF RGB is R,G,B, so colour samples are swapped as the row is repacked.
-    const int32_t dibStride = page.stride();
+    const int64_t dibStride = page.stride();
     std::vector<uint8_t> row(tiffStride);
     for (int32_t y = 0; y < page.height; ++y) {
-        const uint8_t* source = page.bits.data() + static_cast<size_t>(page.height - 1 - y) * dibStride;
+        const uint8_t* source = page.bits.data()
+                              + static_cast<size_t>(page.height - 1 - y) * static_cast<size_t>(dibStride);
         if (samples == 3) {
             for (int32_t x = 0; x < page.width; ++x) {
                 row[static_cast<size_t>(x) * 3 + 0] = source[static_cast<size_t>(x) * 3 + 2];

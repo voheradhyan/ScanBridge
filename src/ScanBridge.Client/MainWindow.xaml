@@ -130,58 +130,74 @@
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <!--
+                        Exactly the height of the mark. The logo and the two lines beside it both
+                        live in this row, so their top and bottom edges are the same edges rather
+                        than two measurements that happen to agree.
 
-                <!-- The mark, at a size worth having. At 18px it was a smudge doing neither job:
-                     too small to be recognised, large enough to take space. -->
-                <Image x:Name="HeaderLogo" Grid.Column="0" Width="64" Height="64"
-                       VerticalAlignment="Center" Margin="0,0,20,0"
-                       RenderOptions.BitmapScalingMode="HighQuality" />
+                        They did not agree before. The logo was centred in the band and the text
+                        was centred too - but the text block included the detail line underneath,
+                        so it was taller, and centring two stacks of different heights lines up
+                        their middles and nothing else. The bracket sat half a line high.
+                    -->
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
 
                 <!--
-                    The name and the state bracket the mark: first line pinned to the top of a
-                    block exactly as tall as the logo, second pinned to its bottom, both aligned
-                    to the logo's top edge. The pair reads as one object with the mark rather
-                    than as text that happens to sit near it.
+                    One stack, three lines. 64 = 20 + 10 + 34: the mark's height is the first two
+                    lines exactly, so it brackets the name and the state, and the detail follows
+                    immediately underneath as part of the same block.
 
-                    The dot is inline at the start of the second line, so it falls directly under
-                    the S of ScanBridge. It spent one revision in a gutter of its own, which put
-                    every line on a single left edge and looked tidy in isolation - and left the
-                    dot lined up with nothing.
+                    Every one of those numbers is set explicitly, because a TextBlock's height is
+                    its font's line box and not its point size - a 24px headline occupies about 34.
+                    Two earlier attempts aligned the logo and the text by alignment alone, Top on
+                    one and Bottom on the other, which does not compress content that is too tall:
+                    it pushes it outward past the row, and WPF does not clip. The name floated
+                    above the mark and the headline hung below it.
+
+                    The detail line was then put in a grid row of its own, which detached it from
+                    the thing it describes and let it drift to wherever that row happened to land.
+                    It belongs in the stack.
                 -->
-                <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                    <Grid Height="64">
-                        <TextBlock VerticalAlignment="Top">
-                            <Run Text="ScanBridge" Foreground="#8FA9D4" FontSize="14"
-                                 FontWeight="SemiBold" /><Run Text="  " /><Run x:Name="HeaderVersion"
-                                 Foreground="#5A73A0" FontSize="12.5" />
-                        </TextBlock>
+                <Image x:Name="HeaderLogo" Grid.Row="0" Grid.Column="0" Width="64" Height="64"
+                       VerticalAlignment="Top" Margin="0,0,20,0"
+                       RenderOptions.BitmapScalingMode="HighQuality" />
 
-                        <StackPanel Orientation="Horizontal" VerticalAlignment="Bottom">
-                            <Ellipse x:Name="HeroDot" Width="10" Height="10"
-                                     Fill="{StaticResource Teal}" VerticalAlignment="Center"
-                                     Margin="0,2,11,0" />
+                <StackPanel Grid.Row="0" Grid.Column="1" VerticalAlignment="Top">
+                    <TextBlock LineHeight="20" LineStackingStrategy="BlockLineHeight" Margin="0,0,0,10">
+                        <Run Text="ScanBridge" Foreground="#8FA9D4" FontSize="14"
+                             FontWeight="SemiBold" /><Run Text="  " /><Run x:Name="HeaderVersion"
+                             Foreground="#5A73A0" FontSize="12.5" />
+                    </TextBlock>
+
+                    <!-- One line box of exactly 34, with the dot centred in it and sitting
+                         directly under the S of ScanBridge above. -->
+                    <Grid Height="34">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <Ellipse x:Name="HeroDot" Width="10" Height="10" Fill="{StaticResource Teal}"
+                                     VerticalAlignment="Center" Margin="0,1,11,0" />
                             <TextBlock x:Name="HeroHeadline" Text="Starting…" Foreground="White"
-                                       FontSize="24" FontWeight="SemiBold"
-                                       TextTrimming="CharacterEllipsis" />
+                                       FontSize="24" FontWeight="SemiBold" LineHeight="34"
+                                       LineStackingStrategy="BlockLineHeight"
+                                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                         </StackPanel>
                     </Grid>
 
-                    <!-- Outside the bracketed pair: a third line cannot fit between the logo's
-                         top and bottom without crushing the other two, and this one is often
-                         empty. The header grows when there is something to say. -->
-                    <TextBlock x:Name="StatusText" Text="" Foreground="#9DB8E0" Margin="21,7,0,0"
-                               TextWrapping="Wrap" />
+                    <!-- Indented to the headline's text, not to the dot, so the two read as one
+                         column of prose with the dot hanging off it. -->
+                    <TextBlock x:Name="StatusText" Text="" Foreground="#9DB8E0"
+                               Margin="21,5,0,0" TextWrapping="Wrap" />
                 </StackPanel>
 
                 <!-- The bridge. The product is a span between two machines and nothing on the
                      old screen showed that; this makes the mental model visible and doubles as
                      the connection indicator.
 
-                     Each end is a drawn machine rather than a labelled rectangle. Two boxes
-                     containing words are two boxes; a laptop and a monitor are the two places,
-                     and which is which is legible before the labels are read. -->
-                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center"
-                            Margin="24,0,0,0">
+                     Each end is a drawn machine rather than a labelled rectangle, at identical
+                     box and glyph sizes: a pair meant to be read as matched must actually be. -->
+                <StackPanel Grid.Row="0" Grid.Column="2" Orientation="Horizontal"
+                            VerticalAlignment="Center" Margin="24,0,0,0">
 
                     <StackPanel Width="98">
                         <Border Width="78" Height="56" CornerRadius="8" Background="#1B3A66"
@@ -201,21 +217,20 @@
                                    TextTrimming="CharacterEllipsis" MaxWidth="98" />
                     </StackPanel>
 
-                    <Canvas Width="52" Height="52" VerticalAlignment="Top">
-                        <Line x:Name="BridgeLine" X1="2" Y1="26" X2="50" Y2="26"
+                    <Canvas Width="52" Height="56" VerticalAlignment="Top">
+                        <Line x:Name="BridgeLine" X1="2" Y1="28" X2="50" Y2="28"
                               Stroke="#2E5488" StrokeThickness="2" StrokeDashArray="3 3" />
-                        <Ellipse x:Name="BridgePulse" Canvas.Left="21" Canvas.Top="21" Width="10" Height="10"
+                        <Ellipse x:Name="BridgePulse" Canvas.Left="21" Canvas.Top="23" Width="10" Height="10"
                                  Fill="{StaticResource Teal}" Visibility="Collapsed" />
                     </Canvas>
 
                     <StackPanel Width="98">
                         <Border x:Name="BridgeRemoteBox" Width="78" Height="56" CornerRadius="8"
                                 Background="#152F52" BorderBrush="#2E5488" BorderThickness="1">
-                            <!-- Monitor on a stand: the session on the server. Deliberately a
-                                 different silhouette from the laptop, so the two ends are told
-                                 apart by shape and not only by the words underneath. -->
-                            <Canvas x:Name="BridgeRemoteIcon" Width="30" Height="24"
-                                    HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <!-- Monitor on a stand: the session on the server. A different
+                                 silhouette from the laptop, so the two ends are told apart by
+                                 shape and not only by the words underneath. -->
+                            <Canvas Width="30" Height="24" HorizontalAlignment="Center" VerticalAlignment="Center">
                                 <Path x:Name="BridgeRemoteScreen" Stroke="#6E86B2" StrokeThickness="1.6"
                                       StrokeLineJoin="Round" Data="M3,3 H27 V17 H3 Z" />
                                 <Path x:Name="BridgeRemoteStand" Fill="#6E86B2"
