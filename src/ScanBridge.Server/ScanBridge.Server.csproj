@@ -43,6 +43,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\ScanBridge.Setup\ScanBridge.Setup.csproj" />
     <ProjectReference Include="..\ScanBridge.Common\ScanBridge.Common.csproj" />
     <ProjectReference Include="..\ScanBridge.Rdp\ScanBridge.Rdp.csproj" />
     <!-- The session-agent role, hosted by this executable rather than shipped as its own. -->

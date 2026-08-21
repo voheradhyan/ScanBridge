@@ -35,7 +35,124 @@ public static class ServerInstaller
         (Path.Combine(Environment.SystemDirectory, "..", "twain_32", "ScanBridge"), "x86/ScanBridge.ds"),
     };
 
-    public static int Install(string? installDirectory)
+    /// <summary>What the Start Menu entry is called.</summary>
+    private const string ShortcutName = "ScanBridge Server";
+
+    /// <summary>The subkey under HKLM ...\Uninstall that Apps &amp; Features reads.</summary>
+    private const string UninstallKey = "ScanBridge Server";
+
+    /// <summary>
+    /// Shortcuts for the machine, not for whoever ran the installer.
+    ///
+    /// The server half is installed once, elevated, and belongs to the host. Putting its Start
+    /// Menu entry in the installing administrator's own profile would hide it from every other
+    /// administrator who later wonders what is running — which is exactly the person who needs
+    /// to find it. Neither shortcut failing is worth aborting an install that has otherwise put
+    /// a working service on the machine.
+    ///
+    /// The shortcut points at the installed executable, which with no arguments shows the
+    /// manage-and-remove window rather than trying to run as a service.
+    /// </summary>
+    private static void CreateShortcuts(string installedExe, bool desktopShortcut)
+    {
+        const string description = "Manage or remove ScanBridge scanner redirection on this server";
+
+        try
+        {
+            string startMenu = Shortcuts.CommonStartMenu(ShortcutName);
+            Shortcuts.Create(startMenu, installedExe, description);
+            Console.WriteLine($"  start menu   {startMenu}");
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"  could not create the Start Menu shortcut: {ex.Message}");
+        }
+
+        string desktop = Shortcuts.CommonDesktop(ShortcutName);
+
+        if (!desktopShortcut)
+        {
+            if (Shortcuts.Remove(desktop)) Console.WriteLine("  removed the desktop shortcut");
+            return;
+        }
+
+        try
+        {
+            Shortcuts.Create(desktop, installedExe, description);
+            Console.WriteLine($"  desktop      {desktop}");
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"  could not create the desktop shortcut: {ex.Message}");
+        }
+    }
+
+    /// <summary>Where Windows says this is installed, or null if it is not.</summary>
+    public static string? InstalledDirectory() =>
+        AddRemovePrograms.InstalledLocation(UninstallKey, machineWide: true);
+
+    /// <summary>
+    /// What the setup window shows and calls back into.
+    ///
+    /// Unlike the client, this half must be elevated, so the window is allowed to re-launch the
+    /// executable and let Windows raise its own consent prompt. Asking three questions and then
+    /// failing on "access denied" is the behaviour that arrangement exists to avoid.
+    /// </summary>
+    public static Setup.SetupPlan SetupPlan() => new()
+    {
+        ProductName = "ScanBridge Server",
+        Summary = "Installs the service and both TWAIN data sources, so applications in a "
+                + "Remote Desktop session can use a scanner attached to the user's own PC.",
+        DefaultDirectory = AppPaths.InstallDirectory,
+        OffersStartWithWindows = false,   // it is a service; it starts with the machine
+        RequiresElevation = true,
+        ExistingInstall = InstalledDirectory,
+        ExistingVersion = () => AddRemovePrograms.InstalledVersion(UninstallKey, machineWide: true),
+
+        Install = (choices, writer) => Setup.SetupHost.Capturing(writer, () =>
+            Install(choices.Directory, choices.DesktopShortcut)),
+
+        Uninstall = writer => Setup.SetupHost.Capturing(writer, Uninstall),
+
+        RelaunchElevated = choices => RelaunchElevated(choices.Directory, choices.DesktopShortcut),
+    };
+
+    /// <summary>
+    /// Starts this executable again, elevated, carrying the choices as switches.
+    ///
+    /// ShellExecute with the "runas" verb is what raises the consent prompt; there is no way to
+    /// gain rights inside the running process. A user who declines produces ERROR_CANCELLED,
+    /// which is a refusal rather than a failure and is reported as such.
+    /// </summary>
+    private static bool RelaunchElevated(string directory, bool desktopShortcut)
+    {
+        string? self = Environment.ProcessPath;
+        if (self is null) return false;
+
+        string arguments = $"--install --to \"{directory.TrimEnd('\\')}\"";
+        if (desktopShortcut) arguments += " --desktop-shortcut";
+
+        try
+        {
+            var started = Process.Start(new ProcessStartInfo(self, arguments)
+            {
+                UseShellExecute = true,
+                Verb = "runas",
+            });
+
+            // Waited for rather than fired and forgotten, so the window that launched it does
+            // not disappear before the install it asked for has actually happened.
+            started?.WaitForExit();
+            return started is not null;
+        }
+        catch (System.ComponentModel.Win32Exception)
+        {
+            // ERROR_CANCELLED: the consent prompt was declined.
+            return false;
+        }
+    }
+
+    public static int Install(string? installDirectory, bool desktopShortcut = false)
     {
         if (!IsElevated())
         {
@@ -78,6 +195,12 @@ public static class ServerInstaller
             Directory.CreateDirectory(AppPaths.MachineLogDirectory);
 
             StartService();
+
+            CreateShortcuts(installedExe, desktopShortcut);
+
+            AddRemovePrograms.Register(UninstallKey, "ScanBridge Server", installedExe, target,
+                                       machineWide: true);
+            Console.WriteLine($"  listed in    Apps & Features as ScanBridge Server {AddRemovePrograms.Version}");
 
             Console.WriteLine();
             Console.WriteLine("Installed. Applications in a Remote Desktop session will list a scanner");
@@ -145,6 +268,15 @@ public static class ServerInstaller
             Console.Error.WriteLine($"  could not remove the registry key: {ex.Message}");
             problems++;
         }
+
+        foreach (string link in new[] { Shortcuts.CommonStartMenu(ShortcutName),
+                                        Shortcuts.CommonDesktop(ShortcutName) })
+        {
+            if (Shortcuts.Remove(link)) Console.WriteLine($"  removed {link}");
+        }
+
+        AddRemovePrograms.Unregister(UninstallKey, machineWide: true);
+        Console.WriteLine("  removed the Apps & Features entry");
 
         Console.WriteLine(problems == 0
             ? "\nRemoved. Users must sign out and back in for applications to stop listing the scanner."

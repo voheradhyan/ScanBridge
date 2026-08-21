@@ -55,6 +55,34 @@ public partial class App : System.Windows.Application
     /// immediately, and the alternative — polling — would mean the shortcut feels dead for up
     /// to the poll interval.
     /// </summary>
+    /// <summary>
+    /// Is this the copy that was installed, or a downloaded file someone has just double-clicked?
+    ///
+    /// Compared as full paths rather than by asking whether anything is installed at all: a
+    /// person who already has ScanBridge and opens a newer download is upgrading, and the honest
+    /// answer to that click is the setup window, not a second tray agent running out of their
+    /// Downloads folder.
+    /// </summary>
+    private static bool RunningFromInstallDirectory()
+    {
+        string? running = Environment.ProcessPath;
+        if (running is null) return true;   // cannot tell; behave as before rather than surprise
+
+        try
+        {
+            string here = Path.GetFullPath(Path.GetDirectoryName(running) ?? string.Empty);
+            string installed = Path.GetFullPath(
+                ClientInstaller.InstalledDirectory() ?? ClientInstaller.DefaultDirectory);
+
+            return string.Equals(here.TrimEnd('\\'), installed.TrimEnd('\\'),
+                                 StringComparison.OrdinalIgnoreCase);
+        }
+        catch (Exception)
+        {
+            return true;
+        }
+    }
+
     private void StartShowWindowListener()
     {
         _showWindowSignal = new EventWaitHandle(false, EventResetMode.AutoReset, ShowWindowEventName);
@@ -201,6 +229,19 @@ public partial class App : System.Windows.Application
             return;
         }
 
+        // Double-clicked from wherever it was downloaded, rather than started from the copy that
+        // was installed: show setup instead of silently starting a tray icon.
+        //
+        // The discriminator is which file is running, not whether anything is installed. Someone
+        // who already has ScanBridge and double-clicks a newer download wants to upgrade, and
+        // starting a second tray agent from their Downloads folder is never what they meant —
+        // it would run, work, and disappear the next time they cleared that folder.
+        if (e.Args.Length == 0 && !RunningFromInstallDirectory())
+        {
+            Environment.Exit(Setup.SetupHost.Run(ClientInstaller.SetupPlan()));
+            return;
+        }
+
         // Only one agent may run per session: the second one would fail to create the agent
         // pipe (by design - FILE_FLAG_FIRST_PIPE_INSTANCE is what stops another process
         // hijacking the name) and die with an error the user cannot act on. Catching it here
@@ -246,6 +287,8 @@ public partial class App : System.Windows.Application
         }
 
         StartShowWindowListener();
+
+        // (RunningFromInstallDirectory is defined below; see the setup branch above.)
 
         CommonLog.Initialize("agent");
         AppPaths.EnsureDirectories();

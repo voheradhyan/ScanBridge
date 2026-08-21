@@ -27,7 +27,44 @@ public static class ClientInstaller
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "Programs", "ScanBridge");
 
-    public static int Install(string? installDirectory, bool startNow = true)
+    /// <summary>Where the Start Menu and Desktop shortcuts are called.</summary>
+    private const string ShortcutName = "ScanBridge";
+
+    /// <summary>The subkey under HKCU ...\Uninstall that Apps &amp; Features reads.</summary>
+    private const string UninstallKey = "ScanBridge";
+
+    /// <summary>Where Windows says this is installed, or null if it is not.</summary>
+    public static string? InstalledDirectory() =>
+        AddRemovePrograms.InstalledLocation(UninstallKey, machineWide: false);
+
+    /// <summary>
+    /// What the setup window shows and calls back into.
+    ///
+    /// The window collects choices; every rule about how the client installs stays here, where
+    /// it is already written down. Note that RequiresElevation is false and stays false: this
+    /// half refuses to run elevated at all, so there is nothing for the window to escalate to.
+    /// </summary>
+    public static Setup.SetupPlan SetupPlan() => new()
+    {
+        ProductName = "ScanBridge",
+        Summary = "Makes the scanner attached to this PC usable by applications running "
+                + "inside your Remote Desktop session.",
+        DefaultDirectory = DefaultDirectory,
+        OffersStartWithWindows = true,
+        RequiresElevation = false,
+        ExistingInstall = InstalledDirectory,
+        ExistingVersion = () => AddRemovePrograms.InstalledVersion(UninstallKey, machineWide: false),
+
+        Install = (choices, writer) => Setup.SetupHost.Capturing(writer, () =>
+            Install(choices.Directory, startNow: true,
+                    desktopShortcut: choices.DesktopShortcut,
+                    startWithWindows: choices.StartWithWindows)),
+
+        Uninstall = writer => Setup.SetupHost.Capturing(writer, Uninstall),
+    };
+
+    public static int Install(string? installDirectory, bool startNow = true,
+                              bool desktopShortcut = true, bool startWithWindows = true)
     {
         if (IsElevated())
         {
@@ -51,6 +88,21 @@ public static class ClientInstaller
         try
         {
             Console.WriteLine($"Installing ScanBridge to {target}");
+
+            // Before anything is written. The RDP add-in is loaded inside mstsc.exe whenever a
+            // Remote Desktop session is open, and Windows will not replace a loaded image — so
+            // an upgrade attempted mid-session used to copy the new program into place and then
+            // fail on the add-in, leaving a new executable beside old plugins. That combination
+            // is worse than not upgrading at all, and it looked like a successful install right
+            // up until scanning quietly stopped working.
+            if (BlockedPayload(target) is { } lockedFile)
+            {
+                Console.Error.WriteLine();
+                Console.Error.WriteLine(lockedFile);
+                Console.Error.WriteLine();
+                Console.Error.WriteLine("Nothing was changed.");
+                return 6;
+            }
 
             StopRunningCopy();
 
@@ -85,7 +137,15 @@ public static class ClientInstaller
             }
 
             RegisterAddIn(target);
-            RegisterAutoStart(installedExe);
+
+            if (startWithWindows) RegisterAutoStart(installedExe);
+            else RemoveAutoStart(quiet: true);
+
+            CreateShortcuts(installedExe, desktopShortcut);
+
+            AddRemovePrograms.Register(UninstallKey, "ScanBridge", installedExe, target,
+                                       machineWide: false);
+            Console.WriteLine($"  listed in    Apps & Features as ScanBridge {AddRemovePrograms.Version}");
 
             if (PluginRegistration.PolicyBlockReason() is { } blocked)
             {
@@ -115,16 +175,16 @@ public static class ClientInstaller
         StopRunningCopy();
         PluginRegistration.Unregister();
 
-        try
+        if (!RemoveAutoStart(quiet: false)) problems++;
+
+        foreach (string link in new[] { Shortcuts.UserStartMenu(ShortcutName),
+                                        Shortcuts.UserDesktop(ShortcutName) })
         {
-            using RegistryKey? run = Registry.CurrentUser.OpenSubKey(RunKeyPath, writable: true);
-            run?.DeleteValue(RunValueName, throwOnMissingValue: false);
+            if (Shortcuts.Remove(link)) Console.WriteLine($"  removed {link}");
         }
-        catch (Exception ex)
-        {
-            Console.Error.WriteLine($"  could not remove the auto-start entry: {ex.Message}");
-            problems++;
-        }
+
+        AddRemovePrograms.Unregister(UninstallKey, machineWide: false);
+        Console.WriteLine("  removed the Apps & Features entry");
 
         // The directory this process is running from cannot delete itself; say so rather than
         // reporting a success that leaves files behind.
@@ -160,6 +220,44 @@ public static class ClientInstaller
     private static bool IsElevated()
         => new WindowsPrincipal(WindowsIdentity.GetCurrent())
             .IsInRole(WindowsBuiltInRole.Administrator);
+
+    /// <summary>
+    /// Is any file this install would have to replace currently locked by another process?
+    /// Returns a message naming it, or null when the install can proceed.
+    ///
+    /// A file whose contents already match is not a problem: it will be skipped, not rewritten,
+    /// so being loaded somewhere is irrelevant. Only a file that genuinely has to change and
+    /// cannot counts.
+    /// </summary>
+    private static string? BlockedPayload(string target)
+    {
+        var payload = new (string Resource, string Path)[]
+        {
+            ("x64/ScanBridge.DvcPlugin.dll", Path.Combine(target, "x64", "ScanBridge.DvcPlugin.dll")),
+            ("x86/ScanBridge.DvcPlugin.dll", Path.Combine(target, "x86", "ScanBridge.DvcPlugin.dll")),
+            ("x86/ScanBridge.ScanHost.exe",  Path.Combine(target, "x86", "ScanBridge.ScanHost.exe")),
+        };
+
+        foreach ((string resource, string path) in payload)
+        {
+            if (!EmbeddedPayload.Contains(resource) || !File.Exists(path)) continue;
+            if (EmbeddedPayload.HashOf(resource) == EmbeddedPayload.HashOfFile(path)) continue;
+
+            try
+            {
+                // Opened the way the replacement would open it. If this succeeds the file is
+                // free and the install can go ahead.
+                using var probe = new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                string holders = FileLock.DescribeHolders(path);
+                return $"{Path.GetFileName(path)} has changed in this version and is in use{holders}.";
+            }
+        }
+
+        return null;
+    }
 
     private static void StopRunningCopy()
     {
@@ -227,5 +325,69 @@ public static class ClientInstaller
 
         key.SetValue(RunValueName, $"\"{executable}\"", RegistryValueKind.String);
         Console.WriteLine("  starts with Windows");
+    }
+
+    /// <summary>
+    /// Removes the auto-start entry. Also called during an install where the user cleared that
+    /// option, so that re-running the installer can turn it off as well as on — an installer
+    /// whose checkboxes only work in one direction is worse than one with no checkboxes.
+    /// </summary>
+    private static bool RemoveAutoStart(bool quiet)
+    {
+        try
+        {
+            using RegistryKey? run = Registry.CurrentUser.OpenSubKey(RunKeyPath, writable: true);
+            run?.DeleteValue(RunValueName, throwOnMissingValue: false);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            if (!quiet) Console.Error.WriteLine($"  could not remove the auto-start entry: {ex.Message}");
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// A Start Menu entry always, a Desktop one only if asked.
+    ///
+    /// The Start Menu is not optional because it is how somebody finds a program they installed
+    /// weeks ago; the desktop is a matter of taste. Neither failing is worth aborting an install
+    /// that has otherwise succeeded — the product works without them, it is just harder to
+    /// launch — so both are reported rather than thrown.
+    /// </summary>
+    private static void CreateShortcuts(string installedExe, bool desktopShortcut)
+    {
+        const string description = "Makes this PC's scanner usable inside a Remote Desktop session";
+
+        try
+        {
+            string startMenu = Shortcuts.UserStartMenu(ShortcutName);
+            Shortcuts.Create(startMenu, installedExe, description);
+            Console.WriteLine($"  start menu   {startMenu}");
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"  could not create the Start Menu shortcut: {ex.Message}");
+        }
+
+        string desktop = Shortcuts.UserDesktop(ShortcutName);
+
+        if (!desktopShortcut)
+        {
+            // Cleared on a re-install: take the old one away rather than leaving a shortcut the
+            // user has just asked not to have.
+            if (Shortcuts.Remove(desktop)) Console.WriteLine("  removed the desktop shortcut");
+            return;
+        }
+
+        try
+        {
+            Shortcuts.Create(desktop, installedExe, description);
+            Console.WriteLine($"  desktop      {desktop}");
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"  could not create the desktop shortcut: {ex.Message}");
+        }
     }
 }

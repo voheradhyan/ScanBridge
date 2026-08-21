@@ -115,7 +115,9 @@ public sealed class ScannerService : ServiceBase
                 return await SessionAgent.Program.RunAsync(args[1..]).ConfigureAwait(false);
 
             case "--install":
-                return ServerInstaller.Install(DirectoryArgument(args));
+                return ServerInstaller.Install(
+                    DirectoryArgument(args),
+                    args.Contains("--desktop-shortcut", StringComparer.OrdinalIgnoreCase));
 
             case "--uninstall":
                 return ServerInstaller.Uninstall();
@@ -135,10 +137,14 @@ public sealed class ScannerService : ServiceBase
         // No arguments and a console attached means a person just ran it. Anything else is the
         // service control manager starting us, which passes nothing either — the difference is
         // that it gives us no console.
+        //
+        // This distinction is now load-bearing in a way it was not when the branch only printed
+        // usage: getting it wrong would show a setup window in session 0 where nobody can see or
+        // dismiss it, and the service would sit there until it was killed. UserInteractive is
+        // false under the service control manager, which is exactly what separates the two.
         if (args.Length == 0 && Environment.UserInteractive)
         {
-            PrintUsage();
-            return 0;
+            return Setup.SetupHost.Run(ServerInstaller.SetupPlan());
         }
 
         RunService(args);

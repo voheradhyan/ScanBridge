@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The setup window, shared by both halves.
+
+       A library rather than a copy in each installer, because the two would drift: the client
+       and the server ask for slightly different things (the client offers "start with Windows",
+       the server does not, because it installs a service) and everything else about them should
+       be identical. One window with two configurations is the only arrangement where that stays
+       true without anyone maintaining it.
+
+       WPF in a library consumed by the server, which is a console-subsystem executable running
+       as a Windows service most of the time. That works: the window is only ever created on an
+       explicitly-started STA thread, and only when the process was double-clicked rather than
+       started by the service control manager. -->
+
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <UseWPF>true</UseWPF>
+    <!-- The folder picker. WPF has no native one, and the shell's dialog is what people expect. -->
+    <UseWindowsForms>true</UseWindowsForms>
+    <AssemblyName>ScanBridge.Setup</AssemblyName>
+    <RootNamespace>ScanBridge.Setup</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ScanBridge.Common\ScanBridge.Common.csproj" />
+  </ItemGroup>
+
+</Project>

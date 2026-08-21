@@ -36,6 +36,39 @@ public static class EmbeddedPayload
     /// needed. Returns the SHA-256 of what was written, so an installer can report what it
     /// placed rather than merely that it tried.
     /// </summary>
+    /// <summary>
+    /// The hash of a carried file, without writing it anywhere.
+    ///
+    /// Lets an installer answer "would replacing this file actually change anything" before it
+    /// has modified a thing — which is the difference between refusing an upgrade cleanly and
+    /// failing halfway through one.
+    /// </summary>
+    public static string? HashOf(string relativePath)
+    {
+        string? name = FindName(relativePath);
+        if (name is null) return null;
+
+        using Stream? source = OwningAssembly(name).GetManifestResourceStream(name);
+        if (source is null) return null;
+
+        return Convert.ToHexString(SHA256.HashData(source))[..12];
+    }
+
+    /// <summary>The hash of a file on disk, or null if it is not there or cannot be read.</summary>
+    public static string? HashOfFile(string path)
+    {
+        try
+        {
+            if (!File.Exists(path)) return null;
+            using FileStream file = File.OpenRead(path);
+            return Convert.ToHexString(SHA256.HashData(file))[..12];
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+    }
+
     public static string Extract(string relativePath, string destination)
     {
         string? name = FindName(relativePath)
@@ -48,18 +81,60 @@ public static class EmbeddedPayload
 
         Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
 
+        // Read the resource once. Needed anyway to hash it, and it lets the identical-file case
+        // below be answered without touching the destination at all.
+        using var carried = new MemoryStream();
+        source.CopyTo(carried);
+        byte[] bytes = carried.ToArray();
+        string hash = Convert.ToHexString(SHA256.HashData(bytes))[..12];
+
+        // Already exactly this file? Then leave it alone.
+        //
+        // Not an optimisation. Two of these files are loaded into processes we do not control —
+        // ScanBridge.DvcPlugin.dll lives inside mstsc.exe and ScanBridge.ds inside whatever
+        // application is scanning — and Windows will not let a loaded image be replaced. So
+        // reinstalling the same build while a Remote Desktop session was open failed with
+        // "Access to the path is denied" partway through, leaving the install half-applied.
+        // When the bytes match there is nothing to replace and no reason to fail.
+        if (File.Exists(destination))
+        {
+            try
+            {
+                using FileStream existing = File.OpenRead(destination);
+                if (Convert.ToHexString(SHA256.HashData(existing))[..12] == hash) return hash;
+            }
+            catch (IOException)
+            {
+                // Cannot even read it; fall through and let the write produce the real error.
+            }
+        }
+
         // Written through a temporary file in the same directory and moved into place, so a
         // half-written data source is never visible to a TWAIN manager scanning that folder.
         string staging = destination + ".new";
         using (FileStream target = File.Create(staging))
         {
-            source.CopyTo(target);
+            target.Write(bytes, 0, bytes.Length);
         }
 
-        File.Move(staging, destination, overwrite: true);
+        try
+        {
+            File.Move(staging, destination, overwrite: true);
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+        {
+            File.Delete(staging);
 
-        using FileStream written = File.OpenRead(destination);
-        return Convert.ToHexString(SHA256.HashData(written))[..12];
+            // Name the process holding it. "Access to the path is denied" is true and useless;
+            // what the person needs to know is that their Remote Desktop session has the add-in
+            // loaded and they have to close it.
+            string holders = FileLock.DescribeHolders(destination);
+            throw new IOException(
+                $"{Path.GetFileName(destination)} is in use and could not be replaced{holders}.",
+                ex);
+        }
+
+        return hash;
     }
 
     private static string? FindName(string relativePath)

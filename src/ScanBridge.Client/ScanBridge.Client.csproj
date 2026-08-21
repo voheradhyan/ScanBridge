@@ -53,6 +53,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\ScanBridge.Setup\ScanBridge.Setup.csproj" />
     <ProjectReference Include="..\ScanBridge.Agent\ScanBridge.Agent.csproj" />
     <ProjectReference Include="..\ScanBridge.Common\ScanBridge.Common.csproj" />
     <ProjectReference Include="..\ScanBridge.Protocol\ScanBridge.Protocol.csproj" />
