@@ -52,6 +52,11 @@ public partial class MainWindow : Window
         _host = host;
         _runner = runner;
 
+        // The version, beside the name in the header. Same question the build date in the title
+        // answers — "is this the build I just installed?" — but in the form a person would
+        // quote in a bug report.
+        HeaderVersion.Text = AddRemovePrograms.Version;
+
         // Build date in the title. "Am I looking at the new version or an old one still running
         // in the tray?" is otherwise unanswerable from the screen, and answering it wrongly
         // sends people debugging a bug that was already fixed.
@@ -203,10 +208,18 @@ public partial class MainWindow : Window
     private async void OnRefresh(object sender, RoutedEventArgs e)
         => await RefreshAsync().ConfigureAwait(true);
 
+    /// <summary>Where the last test scan was written, so it can be opened. Null until one runs.</summary>
+    private string? _lastTestScan;
+
     /// <summary>
-    /// Scans one page locally and discards it. This is the "is the scanner itself working"
-    /// check — it deliberately involves no RDP, so a failure here points at the driver and a
-    /// success points at the redirection path.
+    /// Scans one page locally and keeps it. This is the "is the scanner itself working" check —
+    /// it deliberately involves no RDP, so a failure here points at the driver and a success
+    /// points at the redirection path.
+    ///
+    /// The page used to be counted and thrown away, which answered "did bytes arrive" but not
+    /// "is the image right". Those are different questions, and the second one is the one that
+    /// mattered when a scan came back a plausible size and entirely the wrong colour. It is now
+    /// written where it can be looked at.
     /// </summary>
     private async void OnTestScan(object sender, RoutedEventArgs e)
     {
@@ -231,22 +244,56 @@ public partial class MainWindow : Window
             long bytes = 0;
             string? error = null;
 
+            var page = new MemoryStream();
+            PageEncoding encoding = PageEncoding.Jpeg;
+
             await foreach (Frame frame in _runner.ExecuteAsync(
                 !scanner.Is32BitOnly, MessageType.ScanRequest,
                 new ScanRequestMessage(scanner.Id, settings), CancellationToken.None).ConfigureAwait(true))
             {
                 switch (frame.Type)
                 {
-                    case MessageType.ScanPageEnd: pages++; break;
-                    case MessageType.ScanPageData: bytes += frame.Payload.Length; break;
-                    case MessageType.ScanError: error = DecodeError(frame).Message; break;
-                    default: break;
+                    case MessageType.ScanPageBegin:
+                        encoding = DecodeEncoding(frame);
+                        break;
+
+                    case MessageType.ScanPageEnd:
+                        pages++;
+                        break;
+
+                    case MessageType.ScanPageData:
+                    {
+                        // The blob, not the whole frame: the frame also carries the job id, page
+                        // number and offset, and writing those into the file would corrupt it by
+                        // twenty bytes a chunk — enough to break the image and not obviously
+                        // enough to be noticed as the cause.
+                        byte[] data = DecodePageData(frame);
+                        bytes += data.Length;
+
+                        // Only the first page is kept: PageLimit is 1, and a sheet-feeder that
+                        // ignores it should not fill the disk.
+                        if (pages == 0) page.Write(data, 0, data.Length);
+                        break;
+                    }
+
+                    case MessageType.ScanError:
+                        error = DecodeError(frame).Message;
+                        break;
+
+                    default:
+                        break;
                 }
             }
 
+            if (error is null && page.Length > 0) _lastTestScan = SaveTestScan(page, encoding);
+
             SetStatus(error is null
-                ? $"Test scan succeeded: {pages} page, {bytes / 1024} KB."
+                ? _lastTestScan is null
+                    ? $"Test scan succeeded: {pages} page, {bytes / 1024} KB."
+                    : $"Test scan succeeded: {pages} page, {bytes / 1024} KB — click View Scan to check it."
                 : $"Test scan failed: {error}");
+
+            ViewScanButton.IsEnabled = _lastTestScan is not null;
 
             if (error is not null)
                 MessageBox.Show(this, error, "Scan failed", MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -260,6 +307,73 @@ public partial class MainWindow : Window
         {
             SetBusy(false);
         }
+    }
+
+    /// <summary>
+    /// Writes the page beside the logs, under one fixed name.
+    ///
+    /// One name rather than a timestamped series: this is a diagnostic, and a folder that
+    /// silently accumulates full-page scans is a privacy problem of its own — these are the
+    /// user's documents. The previous test scan is overwritten each time.
+    /// </summary>
+    private static string? SaveTestScan(MemoryStream page, PageEncoding encoding)
+    {
+        string extension = encoding switch
+        {
+            PageEncoding.Png => ".png",
+            PageEncoding.CcittG4Tiff => ".tif",
+            PageEncoding.RawBgr => ".bin",
+            _ => ".jpg",
+        };
+
+        try
+        {
+            Directory.CreateDirectory(AppPaths.UserDataDirectory);
+            string path = Path.Combine(AppPaths.UserDataDirectory, "last-test-scan" + extension);
+            File.WriteAllBytes(path, page.ToArray());
+            return path;
+        }
+        catch (Exception ex)
+        {
+            // A scan that cannot be saved is not a failed scan; the counts above still stand.
+            CommonLog.Logger.Warning(ex, "Could not save the test scan.");
+            return null;
+        }
+    }
+
+    /// <summary>Opens the last test scan in whatever the user views images with.</summary>
+    private void OnViewScan(object sender, RoutedEventArgs e)
+    {
+        if (_lastTestScan is null || !File.Exists(_lastTestScan))
+        {
+            MessageBox.Show(this, "Run a test scan first.", "ScanBridge",
+                            MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        try
+        {
+            Process.Start(new ProcessStartInfo(_lastTestScan) { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, $"Could not open {_lastTestScan}:\n\n{ex.Message}", "ScanBridge",
+                            MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    // PayloadReader is a ref struct, so it cannot live in an async method. These exist for the
+    // same reason DecodeError below does: read the frame here, hand back something ordinary.
+    private static PageEncoding DecodeEncoding(Frame frame)
+    {
+        var reader = frame.Reader();
+        return ScanPageBeginMessage.Read(ref reader).Encoding;
+    }
+
+    private static byte[] DecodePageData(Frame frame)
+    {
+        var reader = frame.Reader();
+        return ScanPageDataMessage.Read(ref reader).Data;
     }
 
     private static ScanErrorMessage DecodeError(Frame frame)
