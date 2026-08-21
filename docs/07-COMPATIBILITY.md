@@ -18,6 +18,7 @@ known to work in one place, and designed to work in many.
 | Application | NAPS2, **32-bit**, memory transfer |
 | Transports | RDP dynamic virtual channel; loopback (self-test). |
 | Transfer mechanisms | native, memory, memory-file and file, both bitnesses, against real hardware |
+| Installation | Both installers run on their own machine: the server's elevated on the 2019 host — service registered, session agent started, a scan completed through it — and the client's unelevated on the Windows 11 laptop |
 
 ## Supported by design, never exercised
 

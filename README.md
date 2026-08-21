@@ -49,10 +49,11 @@ rather than running on their own.
 | Session agent + relay | Built, WTS interop verified at runtime |
 | Windows service | Built |
 | WPF tray UI | Built |
-| Self-installing `--install` / `--uninstall`, build packaging | Built |
+| Installers — setup window with folder choice, shortcuts, start-with-Windows; `--install` / `--uninstall` still there for unattended use | Built, run on both machines |
+| In-memory scan preview | Built — a test scan is shown and never written to disk |
 | **Discovery by a real TWAIN manager** | **Verified**, x86 and x64, against an unmodified `twaindsm.dll` |
 | **Full scan, everything but the RDP hop** | **Verified** — real page off real hardware via `SELF-TEST.bat` |
-| End-to-end scan through a live RDP session | **Verified** 14 Aug 2026 — NAPS2 on a Windows Server 2019 RDS host, scanner on the user's Windows 11 laptop, page and colours correct |
+| End-to-end scan through a live RDP session | **Verified** 21 Aug 2026 — NAPS2 on a Windows Server 2019 RDS host, scanner on the user's Windows 11 laptop, page and colours correct. It first worked on 14 Aug 2026, but under the product's former name; renaming it moved the add-in registration and the channel name, so that run was repeated afterwards rather than inherited. |
 
 Everything compiles clean at `/W4` (native) and `TreatWarningsAsErrors` (managed).
 
@@ -63,8 +64,14 @@ Two self-contained executables, produced by `installer\Build-All.ps1` and left i
 
 | | Size | Runs as |
 |---|---|---|
-| `ScanBridge-Server.exe` | 34 MB | administrator |
+| `ScanBridge-Server.exe` | 69 MB | administrator |
 | `ScanBridge-Client.exe` | 104 MB | your own account — never elevated |
+
+The server was 34 MB until it grew a setup window. It is a service and a command-line
+installer, and could have stayed that size by keeping `--install` as the only way in — but the
+person running it is an administrator standing at a server they may not install software on
+often, and handing them a console switch to get the install directory right is a worse trade
+than 35 MB of disk.
 
 Each carries its own payload — the native DLLs, both bitnesses of the TWAIN data source or
 the RDP add-in, the 32-bit ScanHost — embedded in the file. There is nothing else to copy

@@ -118,6 +118,17 @@ A theory that was wrong and should not be inherited: that this was `mstsc.exe`'s
 `HKEY_CURRENT_USER`. It is documented Windows behaviour and it fitted the plugin evidence — but
 the tray agent, a plain desktop application that never impersonates, then did the same thing.
 
+Something to know before re-measuring it, which was not known when it was written: a large part
+of the evidence above was gathered through an assistant's tooling, and that tooling ran inside
+an MSIX container. A containerised process gets a private, virtualised `HKEY_CURRENT_USER` and
+`%LOCALAPPDATA%`. Registry reads made that way describe the container and not the machine — the
+same divergence, from a cause with nothing to do with this product. That is a confirmed property
+of the tooling; it is *not* established that it explains the original fault, and the tray-agent
+observation may well be real. But anyone reproducing this section must run the reads from an
+ordinary shell on the machine itself, or they will measure the wrong hive and believe whatever
+the container happens to hold. The same mistake cost hours on the add-in registration later, for
+exactly this reason.
+
 Two mitigations are in place, and scanning is unaffected either way: secrets are read from
 `HKEY_USERS\<SID>` opened by name, and the local pipe hop verifies the caller's SID directly
 rather than leaning on the secret. If the keys ever diverge again the agent log says so; treat
@@ -130,8 +141,6 @@ that as a lead, not an outage.
 Being honest about this is more useful than a confident summary. See
 [07-COMPATIBILITY.md](07-COMPATIBILITY.md) for the full matrix.
 
-- **`ScanBridge-Server.exe --install`.** The client half has been installed and scanned through;
-  the server half's installer has not been run by anyone at the time of writing.
 - **TWAIN-only scanners.** The whole managed TWAIN backend. It carried three wrong constants
   until 14 Aug 2026 precisely because the only scanner on hand was WIA and this path never ran.
 - **The encrypted TCP fallback between two machines.** Verified between two processes only.
