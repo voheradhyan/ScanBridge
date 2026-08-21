@@ -365,7 +365,50 @@ struct PageHeader {
         h.pixelType = static_cast<PixType>(r.u8());
         h.encoding = static_cast<PageEncoding>(r.u8());
         h.encodedLength = r.i32();
+        h.validate();
         return h;
+    }
+
+    /// Geometry a page is allowed to claim.
+    ///
+    /// Validated inside read() rather than left to the caller, because the caller that forgets
+    /// is the whole bug. ScanSettings has had a Validate() on the request side since the start;
+    /// this is its missing counterpart on the response side, and its absence was reachable:
+    /// nothing between here and the wire inspects a page payload. The session-side relay
+    /// forwards frames verbatim, so these numbers arrive exactly as some peer chose them.
+    ///
+    /// Why it matters more than a bad number usually would. DecodedPage::stride() computes
+    /// ((width * bitsPerPixel + 31) / 32) * 4 in int32_t. At 24 bits per pixel any width above
+    /// about 89 million overflows — signed overflow, so undefined behaviour before we even
+    /// reach the consequence. A width chosen to wrap the product to a small positive number
+    /// leaves fromRaw() computing a small "expected" size, accepting a correspondingly small
+    /// buffer, and keeping the enormous width and height on the page. The data source then
+    /// hands a TWAIN application a DIB whose header declares a huge image and whose pixel data
+    /// is a few kilobytes. An application that trusts the header — most do — reads far past the
+    /// end of the allocation, inside its own process. That process is Acrobat, or an ERP.
+    ///
+    /// The ceiling matches the one copyBottomUp already enforces, so both decode paths agree.
+    /// Everything is computed in int64_t: checking a 32-bit product for overflow after the fact
+    /// is the mistake this exists to prevent.
+    void validate() const {
+        if (width <= 0 || height <= 0)
+            throw ProtocolError("page declares a non-positive width or height");
+
+        // Generous but finite: a 600 dpi scan of A0 is roughly 28,000 pixels on its long edge.
+        constexpr int32_t kMaxPageEdge = 200000;
+        if (width > kMaxPageEdge || height > kMaxPageEdge)
+            throw ProtocolError("page declares an implausible width or height");
+
+        const int64_t bits = pixelType == PixType::BlackWhite ? 1
+                           : pixelType == PixType::Grayscale ? 8 : 24;
+        const int64_t stride = ((static_cast<int64_t>(width) * bits + 31) / 32) * 4;
+        constexpr int64_t kMaxImageBytes = 512LL * 1024 * 1024;
+
+        if (stride * static_cast<int64_t>(height) > kMaxImageBytes)
+            throw ProtocolError("page geometry exceeds the maximum decoded image size");
+
+        if (encodedLength < 0 || encodedLength > (256 * 1024 * 1024))
+            throw ProtocolError("page declares an implausible encoded length");
     }
 };
 

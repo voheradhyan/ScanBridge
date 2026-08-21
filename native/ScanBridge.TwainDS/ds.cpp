@@ -882,9 +882,9 @@ void DataSource::workerLoop() {
 
                 case MsgType::ScanPageBegin: {
                     PayloadReader r = frame.reader();
+                    // Geometry and declared length are checked inside read(); see
+                    // PageHeader::validate in rs_protocol.h for why that lives there.
                     header = PageHeader::read(r);
-                    if (header.encodedLength < 0 || header.encodedLength > (256 * 1024 * 1024))
-                        throw ProtocolError("page declares an implausible encoded length");
                     pageBuffer.clear();
                     pageBuffer.reserve(static_cast<size_t>(header.encodedLength));
                     crc = Crc32();
@@ -899,6 +899,15 @@ void DataSource::workerLoop() {
                     r.i32();                       // page number
                     r.i64();                       // offset (sequential; kept for resync tooling)
                     std::vector<uint8_t> chunk = r.blob();
+
+                    // Against the length the page declared, not just against the per-frame
+                    // limit. Each frame is capped at 32 KB by the codec, but nothing capped how
+                    // many frames could arrive before ScanPageEnd — so a peer that simply kept
+                    // sending could grow this buffer until the host application ran out of
+                    // memory. The host application is Acrobat, or an ERP, not us.
+                    if (pageBuffer.size() + chunk.size() > static_cast<size_t>(header.encodedLength))
+                        throw ProtocolError("page sent more data than it declared");
+
                     crc.append(chunk.data(), chunk.size());
                     pageBuffer.insert(pageBuffer.end(), chunk.begin(), chunk.end());
 
