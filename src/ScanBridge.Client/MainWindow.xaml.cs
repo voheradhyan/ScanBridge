@@ -4,11 +4,13 @@ using System.IO;
 using System.Runtime.Versioning;
 using System.Text;
 using System.Windows;
+using System.Windows.Media;
 using ScanBridge.Agent;
 using ScanBridge.Common;
 using ScanBridge.Protocol;
 using ScanBridge.Rdp;
 using CommonLog = ScanBridge.Common.Log;
+using Button = System.Windows.Controls.Button;
 using MessageBox = System.Windows.MessageBox;
 
 namespace ScanBridge.Client;
@@ -55,18 +57,26 @@ public partial class MainWindow : Window
         // The version, beside the name in the header. Same question the build date in the title
         // answers — "is this the build I just installed?" — but in the form a person would
         // quote in a bug report.
+        // HeaderVersion is a Run now, so it lines up on the same baseline as the name
+        // beside it instead of being a second TextBlock guessing at the alignment.
         HeaderVersion.Text = AddRemovePrograms.Version;
 
-        // Build date in the title. "Am I looking at the new version or an old one still running
-        // in the tray?" is otherwise unanswerable from the screen, and answering it wrongly
-        // sends people debugging a bug that was already fixed.
+        HeaderLogo.Source = LoadMark();
+        RemoveOldSavedScans();
+
+        // The build stamp still exists, because "am I looking at the new version or an old one
+        // still running in the tray?" is otherwise unanswerable and answering it wrongly sends
+        // people debugging a bug that was already fixed. It has moved out of the title bar and
+        // into the Troubleshooting menu: it is diagnostic information, and a title bar reading
+        // "ScanBridge — build 2026-08-21 15:04" spends the most prominent text on the screen on
+        // something nobody needs until something is wrong.
         //
         // Taken from the executable on disk, not from Assembly.Location: packed as a single
-        // file, the assembly has no location and that returns an empty string — which would
-        // have put a 1601 date in the title of every shipped build.
+        // file the assembly has no location and that returns an empty string, which would have
+        // put a 1601 date on every shipped build.
         string self = Environment.ProcessPath ?? AppContext.BaseDirectory;
         var built = File.Exists(self) ? File.GetLastWriteTime(self) : DateTime.Now;
-        Title = $"ScanBridge  —  build {built:yyyy-MM-dd HH:mm}";
+        AboutItem.Header = $"Version {AddRemovePrograms.Version}  ·  build {built:d MMM yyyy HH:mm}";
 
         SessionsGrid.ItemsSource = _links;
         ScannersGrid.ItemsSource = _scanners;
@@ -77,6 +87,70 @@ public partial class MainWindow : Window
         _tick.Start();
 
         Loaded += async (_, _) => await RefreshAsync().ConfigureAwait(true);
+    }
+
+    /// <summary>
+    /// Deletes a test scan left behind by an earlier build.
+    ///
+    /// Between 21 August 2026 and the same afternoon, a test scan was written to
+    /// %LocalAppData%\ScanBridge as last-test-scan.jpg so it could be opened with the shell.
+    /// That was the wrong trade - it is somebody's document, and a diagnostic has no business
+    /// leaving one on disk - and the preview now holds the page in memory instead. Anyone who
+    /// ran that build still has the file, and would have no reason to know it was there.
+    /// </summary>
+    private static void RemoveOldSavedScans()
+    {
+        try
+        {
+            if (!Directory.Exists(AppPaths.UserDataDirectory)) return;
+
+            foreach (string stale in Directory.EnumerateFiles(
+                         AppPaths.UserDataDirectory, "last-test-scan.*"))
+            {
+                File.Delete(stale);
+                CommonLog.Logger.Information(
+                    "Removed a test scan left on disk by an earlier build: {Path}", stale);
+            }
+        }
+        catch (Exception ex)
+        {
+            CommonLog.Logger.Warning(ex, "Could not remove an old saved test scan.");
+        }
+    }
+
+    /// <summary>
+    /// The mark, for the header, out of the icon carried inside this executable.
+    ///
+    /// The same resource the tray icon uses. Not a file beside the program: there is nothing
+    /// beside the program once it is packed as a single file, and an icon that can go missing
+    /// from an install is one that eventually will.
+    /// </summary>
+    private static System.Windows.Media.ImageSource? LoadMark()
+    {
+        try
+        {
+            using Stream? stream = typeof(MainWindow).Assembly
+                .GetManifestResourceStream("ScanBridge.Icon.ico");
+            if (stream is null) return null;
+
+            var decoder = new System.Windows.Media.Imaging.IconBitmapDecoder(
+                stream,
+                System.Windows.Media.Imaging.BitmapCreateOptions.PreservePixelFormat,
+                System.Windows.Media.Imaging.BitmapCacheOption.OnLoad);
+
+            // The largest frame, then let WPF scale it down. Picking the 16px frame and drawing
+            // it at 18 would show the deliberately-simplified small artwork, slightly blurred.
+            System.Windows.Media.Imaging.BitmapFrame best = decoder.Frames[0];
+            foreach (System.Windows.Media.Imaging.BitmapFrame frame in decoder.Frames)
+                if (frame.PixelWidth > best.PixelWidth) best = frame;
+
+            return best;
+        }
+        catch (Exception)
+        {
+            // A header without a logo is a cosmetic loss; failing to open the window is not.
+            return null;
+        }
     }
 
     /// <summary>Set by the tray icon's Exit command; otherwise closing only hides the window.</summary>
@@ -102,8 +176,6 @@ public partial class MainWindow : Window
             // A remote session reaching a scanner raises this, and that is exactly the moment
             // the grid should light up rather than waiting for the next tick.
             RebuildRows();
-            SetStatus($"{_host.ConnectedLinks} RDP link(s) connected, " +
-                      $"{_scanners.Count} scanner(s) available.");
         });
 
     private async Task RefreshAsync()
@@ -117,10 +189,13 @@ public partial class MainWindow : Window
             IReadOnlyList<ScannerInfo> found = _lastFound;
             RebuildRows();
 
+            // Deliberately not a summary of the state: the headline above already says that,
+            // and saying it twice in two registers was one of the things wrong with the old
+            // window. This line is for what just happened, and for detail the headline cannot
+            // hold.
             SetStatus(_scanners.Count == 0
-                ? "No scanners detected. Check the scanner is switched on and its driver is installed."
-                : $"{_scanners.Count} scanner(s) ready. Remote sessions get \"{found[0].Name}\". " +
-                  $"{_host.ConnectedLinks} RDP link(s) connected.");
+                ? string.Empty
+                : $"Applications in your Remote Desktop session are given \"{found[0].Name}\".");
         }
         catch (Exception ex)
         {
@@ -162,6 +237,78 @@ public partial class MainWindow : Window
             ScannersGrid.SelectedItem = _scanners.FirstOrDefault(
                 row => string.Equals(row.Scanner.Id, selectedId, StringComparison.OrdinalIgnoreCase));
         }
+
+        NoScannersHint.Visibility = _scanners.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        UpdateHero();
+    }
+
+    /// <summary>
+    /// The sentence at the top, and the bridge beside it.
+    ///
+    /// This is the only part of the window most people will read. It answers the question they
+    /// opened it for - is my scanner working in my remote session - rather than leaving them to
+    /// infer it from two lists and the absence of rows in them.
+    /// </summary>
+    private void UpdateHero()
+    {
+        ScannerRow? live = _scanners.FirstOrDefault(row => row.IsLive);
+        ScannerRow? target = _scanners.FirstOrDefault(row => row.IsDefault);
+        int links = _host.ConnectedLinks;
+
+        BridgeScannerName.Text = target?.Name ?? string.Empty;
+        BridgeRemoteName.Text = _links.Count > 0 ? _links[0].PeerName : string.Empty;
+
+        bool bridged = links > 0;
+        BridgeLine.Stroke = bridged ? Brush("#2FD3C7") : Brush("#2E5488");
+        BridgeLine.StrokeDashArray = bridged ? null : new DoubleCollection(new double[] { 3, 3 });
+        BridgePulse.Visibility = live is not null ? Visibility.Visible : Visibility.Collapsed;
+        BridgeRemoteBox.Background = bridged ? Brush("#1B3A66") : Brush("#152F52");
+        BridgeRemoteText.Foreground = bridged ? Brush("#BFD3EE") : Brush("#6E86B2");
+
+        // The far machine lights up with its box. Dim while nothing is connected, so the gap
+        // in the middle is not the only thing carrying that fact.
+        BridgeRemoteScreen.Stroke = bridged ? Brush("#BFD3EE") : Brush("#6E86B2");
+        BridgeRemoteStand.Fill = bridged ? Brush("#BFD3EE") : Brush("#6E86B2");
+
+        if (_scanners.Count == 0)
+        {
+            HeroDot.Fill = Brush("#E8A33D");
+            HeroHeadline.Text = "No scanner found";
+            return;
+        }
+
+        if (live is not null)
+        {
+            HeroDot.Fill = Brush("#2FD3C7");
+            HeroHeadline.Text = $"In use — {live.Name}";
+            return;
+        }
+
+        if (bridged)
+        {
+            HeroDot.Fill = Brush("#2FD3C7");
+            HeroHeadline.Text = links == 1 ? "Remote session connected"
+                                           : $"{links} remote sessions connected";
+            return;
+        }
+
+        HeroDot.Fill = Brush("#7E97C4");
+        HeroHeadline.Text = "Ready";
+    }
+
+    // Fully qualified: System.Drawing is in scope here for the tray icon, and both namespaces
+    // define Color and ColorConverter.
+    private static SolidColorBrush Brush(string hex) =>
+        new((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(hex));
+
+    /// <summary>Opens the troubleshooting menu under its button.</summary>
+    private void OnMore(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button button || button.ContextMenu is null) return;
+
+        button.ContextMenu.PlacementTarget = button;
+        button.ContextMenu.Placement = System.Windows.Controls.Primitives.PlacementMode.Top;
+        button.ContextMenu.IsOpen = true;
     }
 
     private async Task<IReadOnlyList<ScannerInfo>> EnumerateScannersAsync()
@@ -208,9 +355,6 @@ public partial class MainWindow : Window
     private async void OnRefresh(object sender, RoutedEventArgs e)
         => await RefreshAsync().ConfigureAwait(true);
 
-    /// <summary>Where the last test scan was written, so it can be opened. Null until one runs.</summary>
-    private string? _lastTestScan;
-
     /// <summary>
     /// Scans one page locally and keeps it. This is the "is the scanner itself working" check —
     /// it deliberately involves no RDP, so a failure here points at the driver and a success
@@ -219,7 +363,7 @@ public partial class MainWindow : Window
     /// The page used to be counted and thrown away, which answered "did bytes arrive" but not
     /// "is the image right". Those are different questions, and the second one is the one that
     /// mattered when a scan came back a plausible size and entirely the wrong colour. It is now
-    /// written where it can be looked at.
+    /// shown, from memory - never written to disk, because it is somebody's document.
     /// </summary>
     private async void OnTestScan(object sender, RoutedEventArgs e)
     {
@@ -285,18 +429,24 @@ public partial class MainWindow : Window
                 }
             }
 
-            if (error is null && page.Length > 0) _lastTestScan = SaveTestScan(page, encoding);
-
             SetStatus(error is null
-                ? _lastTestScan is null
-                    ? $"Test scan succeeded: {pages} page, {bytes / 1024} KB."
-                    : $"Test scan succeeded: {pages} page, {bytes / 1024} KB — click View Scan to check it."
+                ? $"Test scan succeeded: {pages} page, {bytes / 1024:N0} KB."
                 : $"Test scan failed: {error}");
 
-            ViewScanButton.IsEnabled = _lastTestScan is not null;
-
             if (error is not null)
+            {
                 MessageBox.Show(this, error, "Scan failed", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+            else if (page.Length > 0)
+            {
+                // Shown straight away rather than parked behind a button. The only reason to run
+                // a test scan is to look at the result, so making that a second decision added a
+                // step and no information. The bytes live in that window and go when it closes.
+                new ScanPreviewWindow(page.ToArray(), encoding.ToString(), (int)page.Length)
+                {
+                    Owner = this,
+                }.ShowDialog();
+            }
         }
         catch (Exception ex)
         {
@@ -306,59 +456,6 @@ public partial class MainWindow : Window
         finally
         {
             SetBusy(false);
-        }
-    }
-
-    /// <summary>
-    /// Writes the page beside the logs, under one fixed name.
-    ///
-    /// One name rather than a timestamped series: this is a diagnostic, and a folder that
-    /// silently accumulates full-page scans is a privacy problem of its own — these are the
-    /// user's documents. The previous test scan is overwritten each time.
-    /// </summary>
-    private static string? SaveTestScan(MemoryStream page, PageEncoding encoding)
-    {
-        string extension = encoding switch
-        {
-            PageEncoding.Png => ".png",
-            PageEncoding.CcittG4Tiff => ".tif",
-            PageEncoding.RawBgr => ".bin",
-            _ => ".jpg",
-        };
-
-        try
-        {
-            Directory.CreateDirectory(AppPaths.UserDataDirectory);
-            string path = Path.Combine(AppPaths.UserDataDirectory, "last-test-scan" + extension);
-            File.WriteAllBytes(path, page.ToArray());
-            return path;
-        }
-        catch (Exception ex)
-        {
-            // A scan that cannot be saved is not a failed scan; the counts above still stand.
-            CommonLog.Logger.Warning(ex, "Could not save the test scan.");
-            return null;
-        }
-    }
-
-    /// <summary>Opens the last test scan in whatever the user views images with.</summary>
-    private void OnViewScan(object sender, RoutedEventArgs e)
-    {
-        if (_lastTestScan is null || !File.Exists(_lastTestScan))
-        {
-            MessageBox.Show(this, "Run a test scan first.", "ScanBridge",
-                            MessageBoxButton.OK, MessageBoxImage.Information);
-            return;
-        }
-
-        try
-        {
-            Process.Start(new ProcessStartInfo(_lastTestScan) { UseShellExecute = true });
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show(this, $"Could not open {_lastTestScan}:\n\n{ex.Message}", "ScanBridge",
-                            MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }
 
@@ -389,15 +486,25 @@ public partial class MainWindow : Window
     /// a single device, because that is what a TWAIN application expects to pick from its own
     /// device list. So when a PC has several scanners, this is where the user says which.
     /// </summary>
-    private async void OnUseForRemote(object sender, RoutedEventArgs e)
+    /// <summary>
+    /// The radio on a scanner card. Choosing is the action.
+    ///
+    /// This replaced a select-the-row-then-press-a-button pair, which left a gap where the user
+    /// had done half of something and the screen looked identical either way.
+    /// </summary>
+    private async void OnRedirectChosen(object sender, RoutedEventArgs e)
     {
-        if (ScannersGrid.SelectedItem is not ScannerRow row)
-        {
-            MessageBox.Show(this, "Select a scanner first, then choose 'Use for Remote'.",
-                            "ScanBridge", MessageBoxButton.OK, MessageBoxImage.Information);
-            return;
-        }
+        if (sender is not FrameworkElement { Tag: ScannerRow row }) return;
 
+        // Already the one? Then the click was on the radio that is already filled in, and
+        // rewriting the config and showing a dialog would be noise.
+        if (row.IsDefault) return;
+
+        await UseForRemoteAsync(row).ConfigureAwait(true);
+    }
+
+    private async Task UseForRemoteAsync(ScannerRow row)
+    {
         try
         {
             AgentConfig config = AgentConfig.Load();
@@ -565,8 +672,7 @@ public partial class MainWindow : Window
     {
         ScanButton.IsEnabled = !busy;
         RefreshButton.IsEnabled = !busy;
-        TestButton.IsEnabled = !busy;
-        UseForRemoteButton.IsEnabled = !busy;
+        ScannersGrid.IsEnabled = !busy;
         Cursor = busy ? System.Windows.Input.Cursors.Wait : null;
     }
 }
@@ -587,6 +693,65 @@ public sealed record ScannerRow(ScannerInfo Scanner, bool IsDefault, bool IsChos
     public string Vendor => Scanner.Vendor;
     public string Interface => Scanner.Interface.ToString();
     public string Status => Scanner.Status.ToString();
+
+    /// <summary>
+    /// The quiet line under the scanner's name.
+    ///
+    /// Three facts that were three columns. As columns they were given the same weight as the
+    /// name, which is the only thing anybody reads, and two of them - "WIA", "Ready" - are
+    /// details you want available rather than announced.
+    /// </summary>
+    public string Detail
+    {
+        get
+        {
+            var parts = new List<string>();
+            if (!string.IsNullOrWhiteSpace(Vendor)) parts.Add(Vendor);
+            parts.Add(Interface.Equals("Wia", StringComparison.OrdinalIgnoreCase) ? "WIA" : Interface);
+            parts.Add(Status);
+            if (IsDefault) parts.Add(IsChosen ? "your choice" : "chosen automatically");
+            return string.Join("  ·  ", parts);
+        }
+    }
+
+    /// <summary>
+    /// Evidence rather than intent: when a remote session last actually reached this scanner.
+    /// Nothing here while the radio beside it is filled in is the clearest sign that redirection
+    /// is set up and not working.
+    /// </summary>
+    public string ActivityBadge
+    {
+        get
+        {
+            if (LastUsed is not { } when) return string.Empty;
+
+            TimeSpan ago = DateTime.Now - when;
+            if (ago.TotalSeconds < 90) return "In use now";
+            if (ago.TotalMinutes < 60) return $"Used {(int)ago.TotalMinutes} min ago";
+            if (when.Date == DateTime.Now.Date) return $"Used at {when:HH:mm}";
+            return $"Used {when:d MMM}";
+        }
+    }
+
+    public Visibility ActivityVisibility =>
+        LastUsed is null ? Visibility.Collapsed : Visibility.Visible;
+
+    // Brushes rather than colour strings. A string bound to a Brush property leans on WPF's
+    // default value converter finding BrushConverter, which it usually does and silently does
+    // not when the property is templated - producing an invisible badge and no error anywhere.
+    public System.Windows.Media.Brush ActivityBackground =>
+        IsLive ? Swatch(0xE6, 0xFA, 0xF8) : Swatch(0xF1, 0xF5, 0xF9);
+
+    public System.Windows.Media.Brush ActivityForeground =>
+        IsLive ? Swatch(0x0E, 0x7C, 0x74) : Swatch(0x5A, 0x6B, 0x82);
+
+    private static System.Windows.Media.Brush Swatch(byte r, byte g, byte b)
+    {
+        var brush = new System.Windows.Media.SolidColorBrush(
+            System.Windows.Media.Color.FromRgb(r, g, b));
+        brush.Freeze();     // shared across rows and rebuilt on a timer
+        return brush;
+    }
 
     /// <summary>
     /// Which scanner the remote session is offered, and whether that was a decision.
