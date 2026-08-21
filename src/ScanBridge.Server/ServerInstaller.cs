@@ -129,7 +129,13 @@ public static class ServerInstaller
         string? self = Environment.ProcessPath;
         if (self is null) return false;
 
-        string arguments = $"--install --to \"{directory.TrimEnd('\\')}\"";
+        // The folder box is free text, not only the output of the picker, so a path containing a
+        // quote would close the argument early and let the rest of it be read as further
+        // switches. Nobody crosses a privilege boundary doing that to themselves, but an
+        // installer that can be confused by its own input field is not one to leave alone.
+        string directoryArgument = directory.Replace("\"", string.Empty).TrimEnd('\\');
+
+        string arguments = $"--install --to \"{directoryArgument}\"";
         if (desktopShortcut) arguments += " --desktop-shortcut";
 
         try
@@ -171,6 +177,24 @@ public static class ServerInstaller
             StopServiceAndAgents();
 
             Directory.CreateDirectory(target);
+
+            // Before a single byte is written into it. This directory is what LocalSystem runs
+            // from and what the session launcher starts as every signed-in user, so its
+            // permissions are a privilege boundary, not housekeeping. Created directories
+            // inherit their parent's rules, and a data volume root commonly grants Authenticated
+            // Users Modify - which on a Session Host is every user of this product.
+            SecureDirectory.HardenForService(target);
+            Console.WriteLine("  secured     " + target);
+
+            if (!SecureDirectory.IsUnderProgramFiles(target))
+            {
+                Console.WriteLine();
+                Console.WriteLine("  Note: this is outside Program Files. Permissions have been set so that only");
+                Console.WriteLine("  administrators can change what is in it, which is what matters - but Program");
+                Console.WriteLine("  Files is where an administrator will look for it later.");
+                Console.WriteLine();
+            }
+
             string installedExe = Path.Combine(target, "ScanBridge.Server.exe");
             CopySelf(installedExe);
 
